@@ -4,9 +4,11 @@ SwiftPM package for building Autohand-style code agents in Swift. It provides
 `Agent`, `Runner`, async streams, provider abstractions, tools, hooks, loop
 strategies, and permission controls.
 
-## Other SDKs
+**Beta:** this SDK is actively evolving while the Agent SDK APIs stabilize. Pin versions in production and review release notes before upgrading.
 
-Use the same Autohand code-agent model from another language:
+## Other Programming Languages (Beta)
+
+The Agent SDK is available in multiple beta language packages. Use the same Autohand code-agent model from another programming language:
 
 - [TypeScript](https://github.com/autohandai/code-agent-sdk-typescript) - `Agent`, `Run`, streaming, and JSON helpers for Node and Bun hosts.
 - [Go](https://github.com/autohandai/code-agent-sdk-go) - idiomatic Go package with `context.Context`, typed events, and channel-based streaming.
