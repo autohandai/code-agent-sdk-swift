@@ -14,10 +14,37 @@ public enum HookEvent: String, Sendable, CaseIterable {
     case postTool = "post-tool"
     case fileModified = "file-modified"
     case stop
+    case postResponse = "post-response"
     case subagentStop = "subagent-stop"
     case permissionRequest = "permission-request"
     case notification
     case sessionError = "session-error"
+    case automodeStart = "automode:start"
+    case automodeIteration = "automode:iteration"
+    case automodeCheckpoint = "automode:checkpoint"
+    case automodePause = "automode:pause"
+    case automodeResume = "automode:resume"
+    case automodeCancel = "automode:cancel"
+    case automodeComplete = "automode:complete"
+    case automodeError = "automode:error"
+    case preLearn = "pre-learn"
+    case postLearn = "post-learn"
+    case teamCreated = "team-created"
+    case teammateSpawned = "teammate-spawned"
+    case teammateIdle = "teammate-idle"
+    case taskAssigned = "task-assigned"
+    case taskCompleted = "task-completed"
+    case teamShutdown = "team-shutdown"
+    case reviewStart = "review:start"
+    case reviewEnd = "review:end"
+    case reviewPaused = "review:paused"
+    case reviewFailed = "review:failed"
+    case reviewCompleted = "review:completed"
+    case modeChange = "mode-change"
+    case contextCompact = "context:compact"
+    case contextOverflow = "context:overflow"
+    case contextWarning = "context:warning"
+    case contextCritical = "context:critical"
     case beforeExecution = "before-execution"
     case afterExecution = "after-execution"
     case onError = "on-error"
@@ -101,6 +128,31 @@ public struct HookContext: Sendable {
     public let permissionType: String?
     public let notificationType: String?
     public let notificationMessage: String?
+    public let automodeSessionID: String?
+    public let automodePrompt: String?
+    public let automodeIteration: Int?
+    public let automodeMaxIterations: Int?
+    public let automodeActions: [String]?
+    public let automodeFilesCreated: Int?
+    public let automodeFilesModified: Int?
+    public let automodeCancelReason: String?
+    public let automodeCheckpointCommit: String?
+    public let automodeTotalCost: Double?
+    public let reviewPath: String?
+    public let reviewScope: String?
+    public let reviewInstructions: String?
+    public let reviewError: String?
+    public let teamName: String?
+    public let teammateName: String?
+    public let teammateAgentName: String?
+    public let teammatePID: Int?
+    public let teamTaskID: String?
+    public let teamTaskOwner: String?
+    public let teamTaskResult: String?
+    public let teamMemberCount: Int?
+    public let teamTasksCompleted: Int?
+    public let teamTasksTotal: Int?
+    public let additionalWorkspaces: [String]?
 
     public init(
         sessionID: String,
@@ -132,7 +184,32 @@ public struct HookContext: Sendable {
         subagentDuration: Int? = nil,
         permissionType: String? = nil,
         notificationType: String? = nil,
-        notificationMessage: String? = nil
+        notificationMessage: String? = nil,
+        automodeSessionID: String? = nil,
+        automodePrompt: String? = nil,
+        automodeIteration: Int? = nil,
+        automodeMaxIterations: Int? = nil,
+        automodeActions: [String]? = nil,
+        automodeFilesCreated: Int? = nil,
+        automodeFilesModified: Int? = nil,
+        automodeCancelReason: String? = nil,
+        automodeCheckpointCommit: String? = nil,
+        automodeTotalCost: Double? = nil,
+        reviewPath: String? = nil,
+        reviewScope: String? = nil,
+        reviewInstructions: String? = nil,
+        reviewError: String? = nil,
+        teamName: String? = nil,
+        teammateName: String? = nil,
+        teammateAgentName: String? = nil,
+        teammatePID: Int? = nil,
+        teamTaskID: String? = nil,
+        teamTaskOwner: String? = nil,
+        teamTaskResult: String? = nil,
+        teamMemberCount: Int? = nil,
+        teamTasksCompleted: Int? = nil,
+        teamTasksTotal: Int? = nil,
+        additionalWorkspaces: [String]? = nil
     ) {
         self.sessionID = sessionID
         self.cwd = cwd
@@ -164,6 +241,31 @@ public struct HookContext: Sendable {
         self.permissionType = permissionType
         self.notificationType = notificationType
         self.notificationMessage = notificationMessage
+        self.automodeSessionID = automodeSessionID
+        self.automodePrompt = automodePrompt
+        self.automodeIteration = automodeIteration
+        self.automodeMaxIterations = automodeMaxIterations
+        self.automodeActions = automodeActions
+        self.automodeFilesCreated = automodeFilesCreated
+        self.automodeFilesModified = automodeFilesModified
+        self.automodeCancelReason = automodeCancelReason
+        self.automodeCheckpointCommit = automodeCheckpointCommit
+        self.automodeTotalCost = automodeTotalCost
+        self.reviewPath = reviewPath
+        self.reviewScope = reviewScope
+        self.reviewInstructions = reviewInstructions
+        self.reviewError = reviewError
+        self.teamName = teamName
+        self.teammateName = teammateName
+        self.teammateAgentName = teammateAgentName
+        self.teammatePID = teammatePID
+        self.teamTaskID = teamTaskID
+        self.teamTaskOwner = teamTaskOwner
+        self.teamTaskResult = teamTaskResult
+        self.teamMemberCount = teamMemberCount
+        self.teamTasksCompleted = teamTasksCompleted
+        self.teamTasksTotal = teamTasksTotal
+        self.additionalWorkspaces = additionalWorkspaces
     }
 }
 
@@ -340,6 +442,46 @@ public final class HookManager: @unchecked Sendable {
         switch event {
         case .preTool, .postTool:
             return context.toolName
+        case .permissionRequest:
+            return context.toolName
+        case .notification:
+            return context.notificationType
+        case .sessionStart:
+            return context.sessionType
+        case .sessionEnd:
+            return context.sessionEndReason
+        case .subagentStop:
+            return context.subagentType
+        case .automodeStart, .automodeIteration, .automodeCheckpoint,
+             .automodePause, .automodeResume, .automodeCancel,
+             .automodeComplete, .automodeError:
+            return [
+                context.automodePrompt,
+                context.automodeCancelReason,
+                context.automodeCheckpointCommit,
+                context.automodeIteration.map(String.init)
+            ].compactMap { $0 }.joined(separator: " ")
+        case .reviewStart, .reviewEnd, .reviewPaused, .reviewFailed, .reviewCompleted:
+            return [
+                context.reviewPath,
+                context.reviewScope,
+                context.reviewInstructions,
+                context.reviewError
+            ].compactMap { $0 }.joined(separator: " ")
+        case .teamCreated, .teamShutdown:
+            return context.teamName
+        case .teammateSpawned, .teammateIdle:
+            return [
+                context.teamName,
+                context.teammateName,
+                context.teammateAgentName
+            ].compactMap { $0 }.joined(separator: " ")
+        case .taskAssigned, .taskCompleted:
+            return [
+                context.teamTaskID,
+                context.teamTaskOwner,
+                context.teamTaskResult
+            ].compactMap { $0 }.joined(separator: " ")
         case .fileModified:
             return context.filePath
         case .prePrompt:

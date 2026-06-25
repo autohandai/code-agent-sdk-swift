@@ -360,10 +360,22 @@ public enum HookEvent: String, Sendable, CaseIterable {
     case preClear, prePrompt
     case preTool, postTool
     case fileModified
-    case stop, subagentStop
+    case stop, postResponse
+    case subagentStop
     case permissionRequest
     case notification
     case sessionError
+    case automodeStart, automodeIteration, automodeCheckpoint
+    case automodePause, automodeResume, automodeCancel
+    case automodeComplete, automodeError
+    case preLearn, postLearn
+    case teamCreated, teammateSpawned, teammateIdle
+    case taskAssigned, taskCompleted, teamShutdown
+    case reviewStart, reviewEnd, reviewPaused
+    case reviewFailed, reviewCompleted
+    case modeChange
+    case contextCompact, contextOverflow
+    case contextWarning, contextCritical
     case beforeExecution, afterExecution
     case onError
 }

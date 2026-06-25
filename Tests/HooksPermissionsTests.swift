@@ -82,6 +82,14 @@ import Foundation
         #expect(hook.filter == nil)
     }
 
+    @Test func hookEventsMatchCliNames() {
+        #expect(HookEvent.postResponse.rawValue == "post-response")
+        #expect(HookEvent.automodeCheckpoint.rawValue == "automode:checkpoint")
+        #expect(HookEvent.teammateSpawned.rawValue == "teammate-spawned")
+        #expect(HookEvent.reviewCompleted.rawValue == "review:completed")
+        #expect(HookEvent.contextCritical.rawValue == "context:critical")
+    }
+
     @Test func hookContextCreation() {
         let context = HookContext(
             sessionID: "sess_1",
@@ -93,6 +101,27 @@ import Foundation
         #expect(context.sessionID == "sess_1")
         #expect(context.toolName == "read_file")
         #expect(context.instruction == "Read a file")
+    }
+
+    @Test func hookContextSupportsCliEventFamilies() {
+        let context = HookContext(
+            sessionID: "sess_1",
+            cwd: "/tmp",
+            hookEventName: .teammateSpawned,
+            automodeCheckpointCommit: "abc123",
+            reviewPath: "src/App.swift",
+            teamName: "release",
+            teammateName: "planner",
+            teamTaskID: "task-1",
+            additionalWorkspaces: ["/tmp/extra"]
+        )
+
+        #expect(context.automodeCheckpointCommit == "abc123")
+        #expect(context.reviewPath == "src/App.swift")
+        #expect(context.teamName == "release")
+        #expect(context.teammateName == "planner")
+        #expect(context.teamTaskID == "task-1")
+        #expect(context.additionalWorkspaces == ["/tmp/extra"])
     }
 }
 
