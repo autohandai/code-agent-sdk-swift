@@ -15,12 +15,15 @@ The Agent SDK is available in multiple beta language packages. Use the same Auto
 - [Python](https://github.com/autohandai/code-agent-sdk-python) - async Python package with `async for` event streams and typed Pydantic models.
 - [Java](https://github.com/autohandai/code-agent-sdk-java) - Java 21 records, sealed events, and virtual-thread-ready APIs.
 - [Swift](https://github.com/autohandai/code-agent-sdk-swift) - this SwiftPM package.
+- [Rust](https://github.com/autohandai/code-agent-sdk-rust) - async Rust crate with Tokio, typed events, and stream-based runs.
+- [C++](https://github.com/autohandai/code-agent-sdk-cpp) - modern C++20 package with CMake targets and typed event callbacks.
+- [C#](https://github.com/autohandai/code-agent-sdk-csharp) - .NET package with `IAsyncEnumerable`, `CancellationToken`, and `System.Text.Json`.
 
 ## Requirements
 
 - Swift 6.0+
 - macOS 14+ or iOS 17+
-- An OpenAI-compatible provider key for live provider-backed runs
+- An OpenAI-compatible provider key for live provider-backed runs. For Autohand AI Cloud, set `AUTOHAND_AI_API_KEY` and use `ProviderFactory.create(providerName: "autohandai", ...)`.
 
 ## Installation
 
@@ -40,6 +43,58 @@ Then depend on `AgentSDK` from your target:
     dependencies: ["AgentSDK"]
 )
 ```
+
+## CLI-backed goals and autoresearch
+
+On macOS, `AutohandCLIClient` adds the same typed replayable autoresearch ledger
+available in the TypeScript 1.0.3 SDK while preserving the existing direct-provider
+`Agent` and `Runner` APIs:
+
+```swift
+let client = AutohandCLIClient(configuration: .init(cwd: ".", unrestricted: true))
+try client.start()
+defer { client.close() }
+
+if try await client.supportsCommand("/autoresearch") {
+    let start = try await client.startAutoresearch(.init(
+        objective: "Reduce test runtime",
+        metricName: "test_ms",
+        metricUnit: "ms",
+        direction: .lower,
+        measureCommand: "swift test"
+    ))
+    if let instruction = start.instruction {
+        _ = try await client.prompt(instruction)
+    }
+    let history = try await client.autoresearchHistory()
+    _ = try await client.stopAutoresearch()
+}
+```
+
+Persistent goals use the same seven JSON-RPC operations as the TypeScript SDK:
+
+```swift
+if case .value(let result) = try await client.createGoal(.init(
+    objective: "Ship the Swift SDK",
+    tokenBudget: 40_000
+)) {
+    print(result.ok)
+}
+
+_ = try await client.updateGoal(.init(
+    status: .paused,
+    tokenBudget: .clear
+))
+let snapshot = try await client.goal()
+let templates = try await client.goalTemplates()
+```
+
+`AutohandCLIConfiguration` also mirrors current CLI session, AGENTS.md, token,
+skill-source, auto-mode, prompt, feature-flag, and Autohand AI environment
+settings. A non-nil `features` value is applied immediately after startup.
+
+Read the [replayable autoresearch guide](./docs/autoresearch.md) for replay,
+rescore, comparison, Pareto, pinning, retention, and event semantics.
 
 ## Quick Start
 
@@ -100,6 +155,7 @@ for try await event in stream {
 - [Permissions](./docs/permissions.md)
 - [Plan Mode](./docs/plan-mode.md)
 - [Memory](./docs/memory.md)
+- [Replayable Autoresearch](./docs/autoresearch.md)
 - [Migration](./docs/MIGRATION.md)
 - [SDLC Workflows](./docs/sdlc-workflows.md)
 - [Examples](./Examples/README.md)

@@ -131,7 +131,6 @@ public final class OpenAIProvider: Provider, @unchecked Sendable {
                         )
                     }
 
-                    var buffer = ""
                     var accumulatedToolCalls: [String: ToolCall] = [:]
                     var accumulatedArgs: [String: String] = [:]
 
@@ -389,6 +388,11 @@ public enum ProviderFactory {
             return OpenAIProvider(
                 apiKey: apiKey,
                 baseURL: baseURL ?? URL(string: "https://openrouter.ai/api/v1")!
+            )
+        case "autohandai":
+            return OpenAIProvider(
+                apiKey: apiKey,
+                baseURL: baseURL ?? URL(string: "https://api.autohand.ai/v1")!
             )
         default:
             throw AgentSDKError.provider(

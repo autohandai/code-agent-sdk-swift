@@ -88,6 +88,11 @@ import Foundation
         #expect(HookEvent.teammateSpawned.rawValue == "teammate-spawned")
         #expect(HookEvent.reviewCompleted.rawValue == "review:completed")
         #expect(HookEvent.contextCritical.rawValue == "context:critical")
+        #expect(HookEvent.autoresearchDecision.rawValue == "autoresearch:decision")
+        #expect(HookEvent.autoresearchReplay.rawValue == "autoresearch:replay")
+        #expect(HookEvent.autoresearchRescore.rawValue == "autoresearch:rescore")
+        #expect(HookEvent.autoresearchPrune.rawValue == "autoresearch:prune")
+        #expect(HookEvent.goalWrittenCompleted.rawValue == "goal-written:completed")
     }
 
     @Test func hookContextCreation() {

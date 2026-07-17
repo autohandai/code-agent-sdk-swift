@@ -2,6 +2,38 @@
 
 Complete reference for the Swift AgentSDK.
 
+## AutohandCLIClient (macOS)
+
+`AutohandCLIClient` owns an Autohand CLI JSON-RPC subprocess. Configure it with
+`AutohandCLIConfiguration`, call `start()`, and always call `close()`.
+
+- `prompt(_:)`, `command(_:arguments:)`
+- `deepResearch(_:)`, `autoresearch(_:)`
+- `supportedCommands()`, `supportsCommand(_:)`
+- `goal()`, `createGoal(_:)`, `updateGoal(_:)`, `clearGoal()`
+- `queueGoal(_:)`, `startQueuedGoal()`, `goalTemplates()`
+- `applyFeatureSettings(_:)`
+- `startAutoresearch(_:)`, `autoresearchStatus()`, `stopAutoresearch()`
+- `autoresearchHistory()`, `replayAutoresearch(_:)`, `rescoreAutoresearch(_:)`
+- `compareAutoresearch(_:)`, `autoresearchPareto()`, `pinAutoresearch(_:)`
+- `pruneAutoresearch(_:)`
+
+Autoresearch request/result types are `Codable` and `Sendable`. Lifecycle and
+ledger-operation notifications arrive through `AutohandCLIEvent`. Turn-end
+notifications decode as `AutohandTurnEndEvent` with token, usage-status,
+duration, and context fields.
+
+Persistent-goal inputs use `GoalCreateParameters` and `GoalUpdateParameters`.
+`GoalNullableUpdate.unchanged`, `.set(_:)`, and `.clear` distinguish an omitted
+budget from an explicitly cleared budget. Goal results use
+`GoalFeatureResult.value(_:)` or `.disabled(message:)` so disabled CLI features
+remain typed instead of becoming decoding errors.
+
+`AutohandCLIConfiguration` supports the current runtime contract: session
+persistence/resume, AGENTS.md behavior, token thresholds, skill sources,
+auto-mode/auto-commit, prompt files, provider environment, and startup
+`AutohandFeatureFlagSettings`.
+
 ## Agent
 
 The core configuration unit for an AI agent.

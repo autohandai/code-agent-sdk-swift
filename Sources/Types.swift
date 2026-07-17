@@ -144,6 +144,19 @@ public struct UserMessage: Sendable, Codable {
     public init(content: String) {
         self.content = content
     }
+
+    enum CodingKeys: String, CodingKey { case role, content }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        content = try container.decode(String.self, forKey: .content)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(role, forKey: .role)
+        try container.encode(content, forKey: .content)
+    }
 }
 
 public struct AssistantMessage: Sendable, Codable {
@@ -155,6 +168,21 @@ public struct AssistantMessage: Sendable, Codable {
         self.content = content
         self.toolCalls = toolCalls
     }
+
+    enum CodingKeys: String, CodingKey { case role, content, toolCalls }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        content = try container.decode(String.self, forKey: .content)
+        toolCalls = try container.decodeIfPresent([ToolCall].self, forKey: .toolCalls)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(role, forKey: .role)
+        try container.encode(content, forKey: .content)
+        try container.encodeIfPresent(toolCalls, forKey: .toolCalls)
+    }
 }
 
 public struct SystemMessage: Sendable, Codable {
@@ -163,6 +191,19 @@ public struct SystemMessage: Sendable, Codable {
 
     public init(content: String) {
         self.content = content
+    }
+
+    enum CodingKeys: String, CodingKey { case role, content }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        content = try container.decode(String.self, forKey: .content)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(role, forKey: .role)
+        try container.encode(content, forKey: .content)
     }
 }
 

@@ -1,5 +1,11 @@
 # Getting Started with AgentSDK for Swift
 
+For macOS applications that need Autohand CLI commands, persistent `/goal`
+state, `/deep-research`, or the replayable `/autoresearch` ledger, use
+`AutohandCLIClient` and continue with the
+[autoresearch guide](./autoresearch.md). The provider-backed `Agent` and `Runner`
+below remain available on both macOS and iOS.
+
 This guide walks through installing the Swift AgentSDK, configuring a provider,
 and running your first agent.
 

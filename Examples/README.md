@@ -34,6 +34,7 @@ swift run 22-sdlc-release-readiness
 swift run 23-system-prompts
 swift run 24-high-level-agent
 swift run 25-structured-json
+swift run 27-autoresearch-ledger
 swift run loop-strategies
 swift run sdk-control-features
 swift run basic-agent
@@ -59,6 +60,7 @@ swift run basic-agent
 | 23 | `23-system-prompts.swift` | System prompt append/replace configuration |
 | 24 | `24-high-level-agent.swift` | High-level Agent API with clean lifecycle |
 | 25 | `25-structured-json.swift` | Structured JSON output with Codable validation |
+| 27 | `27-autoresearch-ledger.swift` | Typed replayable autoresearch lifecycle and ledger operations |
 | — | `loop-strategies.swift` | All four loop strategies compared |
 | — | `sdk-control-features.swift` | Runtime configuration and control methods |
 | — | `basic-agent.swift` | Full agent setup with all configuration options |
