@@ -556,3 +556,8 @@ public struct MCPInvocationRequestEvent: Codable, Sendable {
   public let args: [String: AnyCodable]
   public let timestamp: String
 }
+
+public struct MCPToolsChangedEvent: Codable, Sendable, Equatable {
+  public let tools: [MCPToolSummary]
+  public let timestamp: String
+}
