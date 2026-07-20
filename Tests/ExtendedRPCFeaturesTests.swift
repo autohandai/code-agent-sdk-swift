@@ -357,6 +357,26 @@ import Testing
       #expect(events.first?.filesModified == 5)
     }
 
+    @Test func autoModeErrorRejectsMalformedAndDeliversTypedEvent() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let recorder = FeatureEventRecorder()
+      let sdk = AutohandSDK(
+        configuration: configuration(for: fixture),
+        onEvent: { recorder.append($0) })
+      try sdk.start()
+      defer { sdk.close() }
+
+      _ = try await sdk.client.prompt("feature-events")
+
+      let events = recorder.events.compactMap { event -> AutoModeErrorEvent? in
+        if case .autoModeError(let value) = event { return value }
+        return nil
+      }
+      #expect(events.count == 1)
+      #expect(events.first?.error == "iteration limit reached")
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,

@@ -440,6 +440,7 @@ public enum AutohandCLIEvent: Sendable {
   case autoresearchOperation(AutoresearchOperationEvent)
   case autoModeIteration(AutoModeIterationEvent)
   case autoModeComplete(AutoModeCompleteEvent)
+  case autoModeError(AutoModeErrorEvent)
   case notification(method: String, payload: [String: AnyCodable], timestamp: String?)
 }
 

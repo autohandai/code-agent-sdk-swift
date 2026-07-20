@@ -923,6 +923,11 @@ public final class AutohandCLIClient: @unchecked Sendable {
         return
       }
       eventHandler(.autoModeComplete(event))
+    case "autohand.automode.error":
+      guard let event = try? JSONDecoder().decode(AutoModeErrorEvent.self, from: data) else {
+        return
+      }
+      eventHandler(.autoModeError(event))
     default:
       let payload = (try? JSONDecoder().decode([String: AnyCodable].self, from: data)) ?? [:]
       eventHandler(

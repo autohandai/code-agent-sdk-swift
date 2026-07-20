@@ -508,3 +508,9 @@ public struct AutoModeCompleteEvent: Codable, Sendable, Equatable {
   public let filesModified: Int
   public let timestamp: String
 }
+
+public struct AutoModeErrorEvent: Codable, Sendable, Equatable {
+  public let sessionId: String
+  public let error: String
+  public let timestamp: String
+}
