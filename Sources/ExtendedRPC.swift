@@ -536,3 +536,16 @@ public struct HookPrePromptEvent: Codable, Sendable, Equatable {
   public let mentionedFiles: [String]
   public let timestamp: String
 }
+
+public enum TokenUsageStatus: String, Codable, Sendable, CaseIterable {
+  case actual
+  case unavailable
+}
+
+public struct HookPostResponseEvent: Codable, Sendable, Equatable {
+  public let tokensUsed: Int
+  public let tokensUsageStatus: TokenUsageStatus?
+  public let toolCallsCount: Int
+  public let duration: Double
+  public let timestamp: String
+}

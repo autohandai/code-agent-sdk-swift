@@ -441,6 +441,28 @@ import Testing
       #expect(events.first?.mentionedFiles == ["README.md", "Package.swift"])
     }
 
+    @Test func postResponseHookRejectsMalformedAndDeliversTypedEvent() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let recorder = FeatureEventRecorder()
+      let sdk = AutohandSDK(
+        configuration: configuration(for: fixture),
+        onEvent: { recorder.append($0) })
+      try sdk.start()
+      defer { sdk.close() }
+
+      _ = try await sdk.client.prompt("feature-events")
+
+      let events = recorder.events.compactMap { event -> HookPostResponseEvent? in
+        if case .hookPostResponse(let value) = event { return value }
+        return nil
+      }
+      #expect(events.count == 1)
+      #expect(events.first?.tokensUsageStatus == .actual)
+      #expect(events.first?.toolCallsCount == 1)
+      #expect(events.first?.duration == 20.5)
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,

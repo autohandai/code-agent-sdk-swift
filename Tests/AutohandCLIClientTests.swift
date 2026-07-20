@@ -837,6 +837,8 @@ import Testing
             printf '{"jsonrpc":"2.0","method":"autohand.hook.postTool","params":{"toolId":"tool-1","toolName":"read_file","success":true,"duration":12.5,"output":"contents","timestamp":"2026-07-21T00:00:04Z"}}\n'
             printf '{"jsonrpc":"2.0","method":"autohand.hook.prePrompt","params":{"instruction":"malformed"}}\n'
             printf '{"jsonrpc":"2.0","method":"autohand.hook.prePrompt","params":{"instruction":"Summarize the SDK","mentionedFiles":["README.md","Package.swift"],"timestamp":"2026-07-21T00:00:05Z"}}\n'
+            printf '{"jsonrpc":"2.0","method":"autohand.hook.postResponse","params":{"tokensUsed":42,"tokensUsageStatus":"estimated","toolCallsCount":1,"duration":20,"timestamp":"2026-07-21T00:00:06Z"}}\n'
+            printf '{"jsonrpc":"2.0","method":"autohand.hook.postResponse","params":{"tokensUsed":42,"tokensUsageStatus":"actual","toolCallsCount":1,"duration":20.5,"timestamp":"2026-07-21T00:00:06Z"}}\n'
             (sleep "${AUTOHAND_PROMPT_DELAY:-0.2}"; printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id") & ;;
           *autohand.getSupportedCommands*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"commands":["help","deep-research","autoresearch"]}}\n' "$id" ;;

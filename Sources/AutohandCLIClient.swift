@@ -943,6 +943,11 @@ public final class AutohandCLIClient: @unchecked Sendable {
         return
       }
       eventHandler(.hookPrePrompt(event))
+    case "autohand.hook.postResponse":
+      guard let event = try? JSONDecoder().decode(HookPostResponseEvent.self, from: data) else {
+        return
+      }
+      eventHandler(.hookPostResponse(event))
     default:
       let payload = (try? JSONDecoder().decode([String: AnyCodable].self, from: data)) ?? [:]
       eventHandler(
