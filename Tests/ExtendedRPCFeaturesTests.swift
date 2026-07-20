@@ -100,6 +100,38 @@ import Testing
       #expect(parameters["pageSize"] as? Int == 10)
     }
 
+    @Test func sessionDetailsDecodesTypedSuccessAndFailureUnion() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: configuration(for: fixture))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.sessionDetails(.init(sessionId: "session-42"))
+
+      guard case .success(let details) = result else {
+        Issue.record("Expected successful session details")
+        return
+      }
+      #expect(details.messages.first?.content == "Done")
+      #expect(details.messages.first?.toolCalls?.first?.name == "write_file")
+      let request = try #require(requests(in: fixture).last)
+      #expect(request["method"] as? String == "autohand.getSession")
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters.count == 1)
+      #expect(parameters["sessionId"] as? String == "session-42")
+
+      let failure = try JSONDecoder().decode(
+        SessionDetailsResult.self,
+        from: Data(#"{"success":false,"error":"not found"}"#.utf8)
+      )
+      guard case .failure(let error) = failure else {
+        Issue.record("Expected failed session details")
+        return
+      }
+      #expect(error.error == "not found")
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,

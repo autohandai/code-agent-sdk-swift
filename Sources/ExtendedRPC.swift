@@ -116,3 +116,152 @@ public struct SessionHistoryResult: Codable, Sendable, Equatable {
   public let totalPages: Int
   public let totalItems: Int
 }
+
+public struct SessionDetailsParameters: Codable, Sendable, Equatable {
+  public let sessionId: String
+
+  public init(sessionId: String) {
+    self.sessionId = sessionId
+  }
+}
+
+public enum SessionMessageRole: String, Codable, Sendable, CaseIterable {
+  case user
+  case assistant
+  case system
+  case tool
+}
+
+public struct SessionMessageToolCall: Codable, Sendable {
+  public let id: String
+  public let name: String
+  public let args: [String: AnyCodable]
+}
+
+public struct SessionMessage: Codable, Sendable {
+  public let id: String
+  public let role: SessionMessageRole
+  public let content: String
+  public let timestamp: String
+  public let toolCalls: [SessionMessageToolCall]?
+}
+
+public struct SessionDetailsSuccess: Sendable {
+  public let sessionId: String
+  public let projectName: String
+  public let model: String
+  public let messageCount: Int
+  public let status: String
+  public let createdAt: String
+  public let lastActiveAt: String
+  public let summary: String?
+  public let messages: [SessionMessage]
+  public let workspaceRoot: String
+}
+
+public struct SessionDetailsFailure: Sendable, Equatable {
+  public let error: String?
+}
+
+public enum SessionDetailsResult: Codable, Sendable {
+  case success(SessionDetailsSuccess)
+  case failure(SessionDetailsFailure)
+
+  public init(from decoder: Decoder) throws {
+    let wire = try SessionDetailsWire(from: decoder)
+    guard wire.success else {
+      self = .failure(.init(error: wire.error))
+      return
+    }
+    guard let sessionId = wire.sessionId,
+      let projectName = wire.projectName,
+      let model = wire.model,
+      let messageCount = wire.messageCount,
+      let status = wire.status,
+      let createdAt = wire.createdAt,
+      let lastActiveAt = wire.lastActiveAt,
+      let messages = wire.messages,
+      let workspaceRoot = wire.workspaceRoot
+    else {
+      throw DecodingError.dataCorrupted(
+        .init(codingPath: decoder.codingPath, debugDescription: "Successful session details are incomplete"))
+    }
+    self = .success(.init(
+      sessionId: sessionId,
+      projectName: projectName,
+      model: model,
+      messageCount: messageCount,
+      status: status,
+      createdAt: createdAt,
+      lastActiveAt: lastActiveAt,
+      summary: wire.summary,
+      messages: messages,
+      workspaceRoot: workspaceRoot
+    ))
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    switch self {
+    case .success(let value):
+      try SessionDetailsWire(
+        success: true,
+        sessionId: value.sessionId,
+        projectName: value.projectName,
+        model: value.model,
+        messageCount: value.messageCount,
+        status: value.status,
+        createdAt: value.createdAt,
+        lastActiveAt: value.lastActiveAt,
+        summary: value.summary,
+        messages: value.messages,
+        workspaceRoot: value.workspaceRoot,
+        error: nil
+      ).encode(to: encoder)
+    case .failure(let value):
+      try SessionDetailsWire(success: false, error: value.error).encode(to: encoder)
+    }
+  }
+}
+
+private struct SessionDetailsWire: Codable {
+  let success: Bool
+  let sessionId: String?
+  let projectName: String?
+  let model: String?
+  let messageCount: Int?
+  let status: String?
+  let createdAt: String?
+  let lastActiveAt: String?
+  let summary: String?
+  let messages: [SessionMessage]?
+  let workspaceRoot: String?
+  let error: String?
+
+  init(
+    success: Bool,
+    sessionId: String? = nil,
+    projectName: String? = nil,
+    model: String? = nil,
+    messageCount: Int? = nil,
+    status: String? = nil,
+    createdAt: String? = nil,
+    lastActiveAt: String? = nil,
+    summary: String? = nil,
+    messages: [SessionMessage]? = nil,
+    workspaceRoot: String? = nil,
+    error: String? = nil
+  ) {
+    self.success = success
+    self.sessionId = sessionId
+    self.projectName = projectName
+    self.model = model
+    self.messageCount = messageCount
+    self.status = status
+    self.createdAt = createdAt
+    self.lastActiveAt = lastActiveAt
+    self.summary = summary
+    self.messages = messages
+    self.workspaceRoot = workspaceRoot
+    self.error = error
+  }
+}
