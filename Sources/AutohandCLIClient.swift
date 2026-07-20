@@ -631,6 +631,12 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(method: "autohand.getToolsRegistry", parameters: EmptyParameters())
   }
 
+  public func setContextCompaction(
+    _ parameters: ContextCompactionParameters
+  ) async throws -> ContextCompactionResult {
+    try await request(method: "autohand.setContextCompact", parameters: parameters)
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

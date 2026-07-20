@@ -298,6 +298,23 @@ import Testing
       #expect((request["params"] as? [String: Any])?.isEmpty == true)
     }
 
+    @Test func contextCompactionUsesExactRuntimeControlContract() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: configuration(for: fixture))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.setContextCompaction(.init(enabled: true))
+
+      #expect(result.enabled)
+      let request = try #require(requests(in: fixture).last)
+      #expect(request["method"] as? String == "autohand.setContextCompact")
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters.count == 1)
+      #expect(parameters["enabled"] as? Bool == true)
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,

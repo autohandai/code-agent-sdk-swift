@@ -139,6 +139,12 @@ public final class AutohandSDK: @unchecked Sendable {
     try await client.toolsRegistry()
   }
 
+  public func setContextCompaction(
+    _ parameters: ContextCompactionParameters
+  ) async throws -> ContextCompactionResult {
+    try await client.setContextCompaction(parameters)
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

@@ -480,3 +480,15 @@ public struct ToolsRegistryResult: Codable, Sendable, Equatable {
   public let tools: [ToolRegistryEntry]
   public let diagnostics: [ToolRegistryDiagnostic]
 }
+
+public struct ContextCompactionParameters: Codable, Sendable, Equatable {
+  public let enabled: Bool
+
+  public init(enabled: Bool) {
+    self.enabled = enabled
+  }
+}
+
+public struct ContextCompactionResult: Codable, Sendable, Equatable {
+  public let enabled: Bool
+}
