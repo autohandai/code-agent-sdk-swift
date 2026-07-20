@@ -277,6 +277,30 @@ import Testing
       #expect(parameters["token"] as? String == "handoff-token")
     }
 
+    @Test func latestBrowserHandoffAttachmentUsesExactEmptyParameters() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: .init(
+        cwd: fixture.directory.path,
+        cliPath: fixture.executable.path,
+        timeout: 5,
+        environment: ["AUTOHAND_TEST_REQUEST_LOG": fixture.requestLog.path]
+      ))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.attachLatestBrowserHandoff()
+      #expect(result.success)
+      #expect(result.sessionId == "latest-session")
+      #expect(result.messageCount == 5)
+
+      let request = try #require(requestObjects(in: fixture.requestLog).first {
+        $0["method"] as? String == "autohand.browserHandoff.attachLatest"
+      })
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters.isEmpty)
+    }
+
     @Test func startupInitializationFailureRollsBackAndCanRetry() throws {
       let fixture = try FakeCLIFixture()
       defer { fixture.remove() }
@@ -592,6 +616,8 @@ import Testing
             printf '{"jsonrpc":"2.0","id":%s,"result":{"sessionId":"reset-session"}}\n' "$id" ;;
           *autohand.browserHandoff.create*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"token":"handoff-token","sessionId":"browser-session","workspaceRoot":"/workspace","createdAt":"2026-07-20T00:00:00Z","expiresAt":"2026-07-20T00:05:00Z","url":"https://example.test/handoff"}}\n' "$id" ;;
+          *autohand.browserHandoff.attachLatest*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true,"sessionId":"latest-session","workspaceRoot":"/workspace","messageCount":5}}\n' "$id" ;;
           *autohand.browserHandoff.attach*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true,"sessionId":"browser-session","workspaceRoot":"/workspace","messageCount":3}}\n' "$id" ;;
           *autohand.prompt*)
