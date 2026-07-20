@@ -555,6 +555,12 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(method: "autohand.permissionAcknowledged", parameters: parameters)
   }
 
+  public func respondToDirectoryAccess(
+    _ parameters: DirectoryAccessResponseParameters
+  ) async throws -> DirectoryAccessResponseResult {
+    try await request(method: "autohand.directoryAccessResponse", parameters: parameters)
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

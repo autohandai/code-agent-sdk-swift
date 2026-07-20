@@ -64,6 +64,12 @@ public final class AutohandSDK: @unchecked Sendable {
     try await client.acknowledgePermission(parameters)
   }
 
+  public func respondToDirectoryAccess(
+    _ parameters: DirectoryAccessResponseParameters
+  ) async throws -> DirectoryAccessResponseResult {
+    try await client.respondToDirectoryAccess(parameters)
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

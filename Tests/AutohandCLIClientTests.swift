@@ -778,6 +778,8 @@ import Testing
             printf '{"jsonrpc":"2.0","id":%s,"result":{"sessionId":"reset-session"}}\n' "$id" ;;
           *autohand.permissionAcknowledged*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id" ;;
+          *autohand.directoryAccessResponse*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id" ;;
           *autohand.browserHandoff.create*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"token":"handoff-token","sessionId":"browser-session","workspaceRoot":"/workspace","createdAt":"2026-07-20T00:00:00Z","expiresAt":"2026-07-20T00:05:00Z","url":"https://example.test/handoff"}}\n' "$id" ;;
           *autohand.browserHandoff.attachLatest*)

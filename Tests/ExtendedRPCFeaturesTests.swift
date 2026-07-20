@@ -22,6 +22,24 @@ import Testing
       #expect(parameters["requestId"] as? String == "permission-1")
     }
 
+    @Test func directoryAccessResponseUsesExactWireContract() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: configuration(for: fixture))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.respondToDirectoryAccess(.init(requestId: "directory-1", granted: true))
+
+      #expect(result.success)
+      let request = try #require(requests(in: fixture).last)
+      #expect(request["method"] as? String == "autohand.directoryAccessResponse")
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters.count == 2)
+      #expect(parameters["requestId"] as? String == "directory-1")
+      #expect(parameters["granted"] as? Bool == true)
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,
