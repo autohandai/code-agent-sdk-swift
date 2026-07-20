@@ -441,6 +441,7 @@ public enum AutohandCLIEvent: Sendable {
   case autoModeIteration(AutoModeIterationEvent)
   case autoModeComplete(AutoModeCompleteEvent)
   case autoModeError(AutoModeErrorEvent)
+  case hookPreTool(HookPreToolEvent)
   case notification(method: String, payload: [String: AnyCodable], timestamp: String?)
 }
 

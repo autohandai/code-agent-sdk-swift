@@ -928,6 +928,11 @@ public final class AutohandCLIClient: @unchecked Sendable {
         return
       }
       eventHandler(.autoModeError(event))
+    case "autohand.hook.preTool":
+      guard let event = try? JSONDecoder().decode(HookPreToolEvent.self, from: data) else {
+        return
+      }
+      eventHandler(.hookPreTool(event))
     default:
       let payload = (try? JSONDecoder().decode([String: AnyCodable].self, from: data)) ?? [:]
       eventHandler(

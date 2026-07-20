@@ -514,3 +514,10 @@ public struct AutoModeErrorEvent: Codable, Sendable, Equatable {
   public let error: String
   public let timestamp: String
 }
+
+public struct HookPreToolEvent: Codable, Sendable {
+  public let toolId: String
+  public let toolName: String
+  public let args: [String: AnyCodable]
+  public let timestamp: String
+}

@@ -831,6 +831,8 @@ import Testing
             printf '{"jsonrpc":"2.0","method":"autohand.automode.complete","params":{"sessionId":"auto-session","iterations":3,"filesCreated":2,"filesModified":5,"timestamp":"2026-07-21T00:00:01Z"}}\n'
             printf '{"jsonrpc":"2.0","method":"autohand.automode.error","params":{"sessionId":"malformed"}}\n'
             printf '{"jsonrpc":"2.0","method":"autohand.automode.error","params":{"sessionId":"auto-session","error":"iteration limit reached","timestamp":"2026-07-21T00:00:02Z"}}\n'
+            printf '{"jsonrpc":"2.0","method":"autohand.hook.preTool","params":{"toolId":"malformed"}}\n'
+            printf '{"jsonrpc":"2.0","method":"autohand.hook.preTool","params":{"toolId":"tool-1","toolName":"read_file","args":{"path":"README.md"},"timestamp":"2026-07-21T00:00:03Z"}}\n'
             (sleep "${AUTOHAND_PROMPT_DELAY:-0.2}"; printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id") & ;;
           *autohand.getSupportedCommands*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"commands":["help","deep-research","autoresearch"]}}\n' "$id" ;;
