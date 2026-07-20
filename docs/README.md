@@ -17,3 +17,4 @@ event streams.
 - [Memory](./memory.md)
 - [Migration](./MIGRATION.md)
 - [SDLC Workflows](./sdlc-workflows.md)
+- [Reliability and Performance](./reliability-and-performance.md)

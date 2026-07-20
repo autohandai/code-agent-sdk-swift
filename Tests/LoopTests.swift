@@ -92,4 +92,75 @@ import Foundation
         #expect(options.reflectionSteps == 2)
         #expect(options.qualityThreshold == 0.8)
     }
+
+    @Test func specializedStrategiesExecuteWithTheirOwnOptionAwarePrompts() async throws {
+        let cases: [(LoopType, LoopOptions, String)] = [
+            (.planAndExecute, .init(maxPlanningSteps: 2), "at most 2 steps"),
+            (.parallel, .init(maxParallelCalls: 4), "up to 4 independent tool calls"),
+            (
+                .reflexion,
+                .init(reflectionSteps: 3, qualityThreshold: 0.95),
+                "up to 3 rounds"
+            ),
+        ]
+
+        for (loopType, options, expectedPrompt) in cases {
+            let provider = LoopRecordingProvider()
+            let agent = Agent(
+                name: "Strategy",
+                instructions: "Follow the selected strategy",
+                tools: [],
+                maxTurns: 1,
+                model: "test-model",
+                provider: provider,
+                loopType: loopType
+            )
+            let registry = LoopStrategyRegistry()
+            let strategy = try #require(registry.getStrategy(loopType))
+            let context = LoopContext(
+                agent: agent,
+                prompt: "Solve this",
+                provider: provider,
+                model: "test-model",
+                toolRegistry: DefaultToolRegistry(allowedTools: []),
+                options: options
+            )
+
+            _ = try await strategy.execute(context: context)
+
+            let messages = try #require(provider.messages.first)
+            #expect(messages.contains { $0.content.contains(expectedPrompt) })
+            if loopType == .reflexion {
+                #expect(messages.contains { $0.content.contains("0.95") })
+            }
+        }
+    }
+}
+
+private final class LoopRecordingProvider: Provider, @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [[Message]] = []
+
+    var messages: [[Message]] { lock.withLock { storage } }
+
+    func modelName(_ model: String) -> String { model }
+
+    func chat(
+        messages: [Message],
+        model: String,
+        tools: [ToolSchema]?,
+        options: ProviderOptions?
+    ) async throws -> ChatResponse {
+        lock.withLock { storage.append(messages) }
+        return .init(id: "final", content: "done")
+    }
+
+    func chatStream(
+        messages: [Message],
+        model: String,
+        tools: [ToolSchema]?,
+        options: ProviderOptions?
+    ) -> AsyncThrowingStream<ChatChunk, Error> {
+        AsyncThrowingStream { $0.finish() }
+    }
 }

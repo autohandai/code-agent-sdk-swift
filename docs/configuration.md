@@ -47,6 +47,9 @@ let reflexion = Agent(..., loopType: .reflexion)
 let result = try await Runner.run(
     agent: agent,
     prompt: "Review this package",
-    options: LoopOptions(maxTurns: 8)
+    options: LoopOptions(maxPlanningSteps: 4)
 )
 ```
+
+`Agent.tools` is an allow-list. `Runner` exposes only those schemas and cannot
+execute other built-ins; `[]` means no tool access.

@@ -5,19 +5,18 @@ import Foundation
 
 public final class Runner: @unchecked Sendable {
     private static let loopRegistry = LoopStrategyRegistry()
-    private static nonisolated(unsafe) var hookManager = HookManager()
-    private static nonisolated(unsafe) var permissionManager: PermissionManager?
+    private static let configuration = RunnerConfigurationState()
 
     public static func setHookManager(_ manager: HookManager) {
-        hookManager = manager
+        configuration.setHookManager(manager)
     }
 
     public static func getHookManager() -> HookManager {
-        return hookManager
+        configuration.snapshot().hookManager
     }
 
     public static func setPermissionManager(_ manager: PermissionManager?) {
-        permissionManager = manager
+        configuration.setPermissionManager(manager)
     }
 
     // MARK: - Run Sync
@@ -38,6 +37,7 @@ public final class Runner: @unchecked Sendable {
     // MARK: - Run
 
     public static func run(agent: Agent, prompt: String, options: LoopOptions? = nil) async throws -> RunResult {
+        let runnerConfiguration = configuration.snapshot()
         guard !agent.instructions.trimmingCharacters(in: .whitespaces).isEmpty else {
             throw AgentSDKError.agentConfig(message: "Agent instructions cannot be empty")
         }
@@ -52,7 +52,7 @@ public final class Runner: @unchecked Sendable {
             hookEventName: .beforeExecution,
             instruction: prompt
         )
-        try await hookManager.execute(event: .beforeExecution, context: context)
+        try await runnerConfiguration.hookManager.execute(event: .beforeExecution, context: context)
 
         guard let provider = agent.provider else {
             throw AgentSDKError.agentConfig(message: "Agent has no provider configured")
@@ -66,14 +66,15 @@ public final class Runner: @unchecked Sendable {
             throw AgentSDKError.agentConfig(message: "Unknown loop type: \(agent.loopType.rawValue)")
         }
 
-        let toolRegistry = DefaultToolRegistry()
+        let toolRegistry = DefaultToolRegistry(allowedTools: agent.tools)
         let loopContext = LoopContext(
             agent: agent,
             prompt: prompt,
             provider: provider,
             model: model,
             toolRegistry: toolRegistry,
-            options: options
+            options: options,
+            permissionManager: runnerConfiguration.permissionManager
         )
 
         let result = try await strategy.execute(context: loopContext)
@@ -85,7 +86,7 @@ public final class Runner: @unchecked Sendable {
             instruction: prompt,
             tokensUsed: result.turns
         )
-        try await hookManager.execute(event: .afterExecution, context: afterContext)
+        try await runnerConfiguration.hookManager.execute(event: .afterExecution, context: afterContext)
 
         return result
     }
@@ -97,8 +98,9 @@ public final class Runner: @unchecked Sendable {
         prompt: String,
         options: LoopOptions? = nil
     ) -> AsyncThrowingStream<StreamEvent, Error> {
-        AsyncThrowingStream { continuation in
-            Task {
+        let runnerConfiguration = configuration.snapshot()
+        return AsyncThrowingStream { continuation in
+            let execution = Task {
                 do {
                     guard !agent.instructions.trimmingCharacters(in: .whitespaces).isEmpty else {
                         throw AgentSDKError.agentConfig(message: "Agent instructions cannot be empty")
@@ -120,7 +122,7 @@ public final class Runner: @unchecked Sendable {
                         throw AgentSDKError.agentConfig(message: "Unknown loop type: \(agent.loopType.rawValue)")
                     }
 
-                    let toolRegistry = DefaultToolRegistry()
+                    let toolRegistry = DefaultToolRegistry(allowedTools: agent.tools)
 
                     let streamCallbacks = ExecutionCallbacks(
                         onToolCall: { event in
@@ -166,7 +168,8 @@ public final class Runner: @unchecked Sendable {
                         provider: provider,
                         model: model,
                         toolRegistry: toolRegistry,
-                        options: streamOptions
+                        options: streamOptions,
+                        permissionManager: runnerConfiguration.permissionManager
                     )
 
                     let result = try await strategy.execute(context: loopContext)
@@ -177,6 +180,37 @@ public final class Runner: @unchecked Sendable {
                     continuation.finish(throwing: error)
                 }
             }
+            continuation.onTermination = { @Sendable _ in
+                execution.cancel()
+            }
+        }
+    }
+}
+
+private struct RunnerConfigurationSnapshot: @unchecked Sendable {
+    let hookManager: HookManager
+    let permissionManager: PermissionManager?
+}
+
+private final class RunnerConfigurationState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var hookManager = HookManager()
+    private var permissionManager: PermissionManager?
+
+    func setHookManager(_ manager: HookManager) {
+        lock.withLock { hookManager = manager }
+    }
+
+    func setPermissionManager(_ manager: PermissionManager?) {
+        lock.withLock { permissionManager = manager }
+    }
+
+    func snapshot() -> RunnerConfigurationSnapshot {
+        lock.withLock {
+            RunnerConfigurationSnapshot(
+                hookManager: hookManager,
+                permissionManager: permissionManager
+            )
         }
     }
 }

@@ -63,15 +63,15 @@ public class ToolRegistry: @unchecked Sendable {
             return .failure(error: "Tool not found: \(toolCall.name.rawValue)")
         }
 
-        let params: [String: AnyCodable]
-        if let data = toolCall.arguments.data(using: .utf8),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            params = json.mapValues { AnyCodable($0) }
-        } else {
-            params = [:]
-        }
+        return try await tool.execute(params: parameters(for: toolCall))
+    }
 
-        return try await tool.execute(params: params)
+    public func parameters(for toolCall: ToolCall) -> [String: AnyCodable] {
+        guard let data = toolCall.arguments.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return [:]
+        }
+        return json.mapValues { AnyCodable($0) }
     }
 
     public func getTool(name: String) -> ToolDefinition? {
@@ -104,25 +104,40 @@ public class ToolRegistry: @unchecked Sendable {
 public final class DefaultToolRegistry: ToolRegistry, @unchecked Sendable {
     public override init() {
         super.init()
-        register(ReadFileTool())
-        register(WriteFileTool())
-        register(EditFileTool())
-        register(BashTool())
-        register(WebSearchTool())
-        register(GitStatusTool())
-        register(GitDiffTool())
-        register(GitLogTool())
-        register(GitAddTool())
-        register(GitCommitTool())
-        register(GitPushTool())
-        register(GitPullTool())
-        register(GitBranchTool())
-        register(GitCheckoutTool())
+        registerBuiltIns(allowedTools: nil)
+    }
+
+    /// Creates a registry containing only the tools explicitly enabled by an agent.
+    public init(allowedTools: [ToolName]) {
+        super.init()
+        registerBuiltIns(allowedTools: Set(allowedTools.map(\.rawValue)))
     }
 
     public static func allToolNames() -> [ToolName] {
         let registry = DefaultToolRegistry()
         return registry.getAllTools().compactMap { ToolName(rawValue: $0.name) }
+    }
+
+    private func registerBuiltIns(allowedTools: Set<String>?) {
+        let builtIns: [any ToolDefinition] = [
+            ReadFileTool(),
+            WriteFileTool(),
+            EditFileTool(),
+            BashTool(),
+            WebSearchTool(),
+            GitStatusTool(),
+            GitDiffTool(),
+            GitLogTool(),
+            GitAddTool(),
+            GitCommitTool(),
+            GitPushTool(),
+            GitPullTool(),
+            GitBranchTool(),
+            GitCheckoutTool(),
+        ]
+        for tool in builtIns where allowedTools?.contains(tool.name) ?? true {
+            register(tool)
+        }
     }
 }
 

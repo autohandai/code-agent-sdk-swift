@@ -145,6 +145,212 @@ import Testing
   }
 
   #if os(macOS)
+    @Test func discoveryAPIsAreTypedAndUseExactCamelCaseWireKeys() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: .init(
+        cwd: fixture.directory.path,
+        cliPath: fixture.executable.path,
+        timeout: 5,
+        environment: ["AUTOHAND_TEST_REQUEST_LOG": fixture.requestLog.path]
+      ))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let registry = try await sdk.getSkillsRegistry(.init(forceRefresh: true))
+      #expect(registry.skills.first?.name == "Release Readiness")
+      #expect(registry.categories == [.init(name: "quality", count: 1)])
+
+      let install = try await sdk.installSkill(.init(
+        skillName: "release-readiness",
+        scope: .project,
+        force: true
+      ))
+      #expect(install.success)
+      #expect(install.path == ".autohand/skills/release-readiness")
+
+      let servers = try await sdk.listMCPServers()
+      #expect(servers.servers == [.init(name: "filesystem", status: "connected", toolCount: 2)])
+      let tools = try await sdk.listMCPTools(.init(serverName: "filesystem"))
+      #expect(tools.tools.first?.serverName == "filesystem")
+      let configs = try await sdk.getMCPServerConfigs()
+      #expect(configs.configs.first?.transport == .stdio)
+      #expect(configs.configs.first?.autoConnect == true)
+
+      let requests = try requestObjects(in: fixture.requestLog)
+      let byMethod = Dictionary(uniqueKeysWithValues: requests.compactMap { request in
+        (request["method"] as? String).map { ($0, request) }
+      })
+      let registryParams = try #require(
+        byMethod["autohand.getSkillsRegistry"]?["params"] as? [String: Any])
+      #expect(registryParams["forceRefresh"] as? Bool == true)
+      #expect(registryParams["force_refresh"] == nil)
+      let installParams = try #require(
+        byMethod["autohand.installSkill"]?["params"] as? [String: Any])
+      #expect(installParams["skillName"] as? String == "release-readiness")
+      #expect(installParams["scope"] as? String == "project")
+      #expect(installParams["force"] as? Bool == true)
+      #expect(installParams["skill_name"] == nil)
+      let toolParams = try #require(
+        byMethod["autohand.mcp.listTools"]?["params"] as? [String: Any])
+      #expect(toolParams["serverName"] as? String == "filesystem")
+      #expect(toolParams["server_name"] == nil)
+      #expect(byMethod["autohand.mcp.listServers"] != nil)
+      #expect(byMethod["autohand.mcp.getServerConfigs"] != nil)
+    }
+
+    @Test func startupInitializationFailureRollsBackAndCanRetry() throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let client = AutohandCLIClient(configuration: .init(
+        cwd: fixture.directory.path,
+        cliPath: fixture.executable.path,
+        timeout: 2,
+        features: .init(usageV2: true),
+        environment: ["AUTOHAND_FAIL_FEATURE_ONCE_MARKER": fixture.failureMarker.path]
+      ))
+
+      #expect(throws: AutohandCLIClientError.self) {
+        try client.start()
+      }
+      #expect(client.isRunning == false)
+
+      try client.start()
+      #expect(client.isRunning)
+      client.close()
+      #expect(client.isRunning == false)
+    }
+
+    @Test func cancellingAsyncRequestReturnsPromptly() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let client = AutohandCLIClient(configuration: .init(
+        cwd: fixture.directory.path,
+        cliPath: fixture.executable.path,
+        timeout: 10
+      ))
+      try client.start()
+      defer { client.close() }
+
+      let started = Date()
+      let task = Task { try await client.prompt("wait forever") }
+      try await Task.sleep(for: .milliseconds(50))
+      task.cancel()
+      do {
+        _ = try await task.value
+        Issue.record("Expected request cancellation")
+      } catch is CancellationError {
+        #expect(Date().timeIntervalSince(started) < 0.5)
+      } catch {
+        Issue.record("Expected CancellationError, got \(error)")
+      }
+
+      let servers = try await client.listMCPServers()
+      #expect(servers.servers.first?.name == "filesystem")
+    }
+
+    @Test func cancellingPromptQueuedBehindAnotherPromptReturnsPromptly() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let client = AutohandCLIClient(configuration: .init(
+        cwd: fixture.directory.path,
+        cliPath: fixture.executable.path,
+        timeout: 10
+      ))
+      try client.start()
+      defer { client.close() }
+
+      let blocking = Task { try await client.prompt("hold transport") }
+      try await Task.sleep(for: .milliseconds(30))
+      let queued = Task { try await client.prompt("queued prompt") }
+      try await Task.sleep(for: .milliseconds(30))
+      let cancelledAt = Date()
+      queued.cancel()
+
+      do {
+        _ = try await queued.value
+        Issue.record("Expected queued request cancellation")
+      } catch is CancellationError {
+        #expect(Date().timeIntervalSince(cancelledAt) < 0.5)
+      } catch {
+        Issue.record("Expected CancellationError, got \(error)")
+      }
+
+      blocking.cancel()
+      _ = try? await blocking.value
+
+      let commands = try await client.supportedCommands()
+      #expect(commands.contains("/autoresearch"))
+    }
+
+    @Test func controlRPCCompletesWhilePromptIsInFlight() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let client = AutohandCLIClient(configuration: .init(
+        cwd: fixture.directory.path,
+        cliPath: fixture.executable.path,
+        timeout: 5,
+        environment: ["AUTOHAND_PROMPT_DELAY": "2"]
+      ))
+      try client.start()
+      defer { client.close() }
+
+      let prompt = Task { try await client.prompt("hold prompt open") }
+      try await Task.sleep(for: .milliseconds(50))
+      let started = Date()
+      let servers = try await client.listMCPServers()
+
+      #expect(servers.servers.first?.name == "filesystem")
+      #expect(Date().timeIntervalSince(started) < 1.5)
+      prompt.cancel()
+      _ = try? await prompt.value
+    }
+
+    @Test func concurrentPromptsRemainSerialized() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let client = AutohandCLIClient(configuration: .init(
+        cwd: fixture.directory.path,
+        cliPath: fixture.executable.path,
+        timeout: 5
+      ))
+      try client.start()
+      defer { client.close() }
+
+      let started = Date()
+      async let first = client.prompt("first prompt")
+      async let second = client.prompt("second prompt")
+      let results = try await [first, second]
+
+      #expect(results.allSatisfy { $0.success })
+      #expect(Date().timeIntervalSince(started) >= 0.3)
+    }
+
+    @Test func spontaneousExitCanRestartWithoutOldRouterPoisoningNewProcess() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let client = AutohandCLIClient(configuration: .init(
+        cwd: fixture.directory.path,
+        cliPath: fixture.executable.path,
+        timeout: 2,
+        environment: ["AUTOHAND_EXIT_ONCE_MARKER": fixture.failureMarker.path]
+      ))
+      try client.start()
+
+      do {
+        _ = try await client.listMCPServers()
+        Issue.record("Expected the first CLI generation to exit")
+      } catch is AutohandCLIClientError {
+        // Expected: the first generation exits before replying.
+      }
+      #expect(client.isRunning == false)
+
+      try client.start()
+      let servers = try await client.listMCPServers()
+      #expect(servers.servers.first?.name == "filesystem")
+      client.close()
+    }
+
     @Test func typedLifecycleAndLedgerMethodsUseRealSubprocessTransport() async throws {
       let fixture = try FakeCLIFixture()
       defer { fixture.remove() }
@@ -232,6 +438,14 @@ import Testing
       if case .value(let result) = operation { return result.ok }
       return false
     }
+
+    private func requestObjects(in file: URL) throws -> [[String: Any]] {
+      let contents = try String(contentsOf: file, encoding: .utf8)
+      return try contents.split(separator: "\n").map { line in
+        try #require(
+          JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])
+      }
+    }
   #endif
 }
 
@@ -247,12 +461,17 @@ import Testing
   private struct FakeCLIFixture {
     let directory: URL
     let executable: URL
+    let requestLog: URL
+    let failureMarker: URL
 
     init() throws {
       directory = FileManager.default.temporaryDirectory
         .appendingPathComponent("autohand-swift-sdk-\(UUID().uuidString)")
       executable = directory.appendingPathComponent("autohand-fake")
+      requestLog = directory.appendingPathComponent("requests.jsonl")
+      failureMarker = directory.appendingPathComponent("feature-failed-once")
       try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+      try Data().write(to: requestLog)
       try Self.script.write(to: executable, atomically: true, encoding: .utf8)
       try FileManager.default.setAttributes(
         [.posixPermissions: 0o755], ofItemAtPath: executable.path)
@@ -265,10 +484,34 @@ import Testing
     private static let script = #"""
       #!/bin/sh
       while IFS= read -r line; do
+        if [ -n "$AUTOHAND_TEST_REQUEST_LOG" ]; then
+          printf '%s\n' "$line" >> "$AUTOHAND_TEST_REQUEST_LOG"
+        fi
         id="$(printf '%s' "$line" | sed -E 's/.*"id"[ ]*:[ ]*([0-9]+).*/\1/')"
         case "$line" in
           *autohand.applyFlagSettings*)
-            printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id" ;;
+            if [ -n "$AUTOHAND_FAIL_FEATURE_ONCE_MARKER" ] && [ ! -f "$AUTOHAND_FAIL_FEATURE_ONCE_MARKER" ]; then
+              : > "$AUTOHAND_FAIL_FEATURE_ONCE_MARKER"
+              printf '{"jsonrpc":"2.0","id":%s,"error":{"code":-32000,"message":"feature init failed"}}\n' "$id"
+            else
+              printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id"
+            fi ;;
+          *autohand.getSkillsRegistry*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true,"skills":[{"id":"release-readiness","name":"Release Readiness","description":"Audit a release","category":"quality","tags":["release"],"rating":4.9,"downloadCount":42,"isFeatured":true,"isCurated":true}],"categories":[{"name":"quality","count":1}]}}\n' "$id" ;;
+          *autohand.installSkill*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true,"skillName":"release-readiness","path":".autohand/skills/release-readiness"}}\n' "$id" ;;
+          *autohand.mcp.listServers*)
+            if [ -n "$AUTOHAND_EXIT_ONCE_MARKER" ] && [ ! -f "$AUTOHAND_EXIT_ONCE_MARKER" ]; then
+              : > "$AUTOHAND_EXIT_ONCE_MARKER"
+              exit 0
+            fi
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"servers":[{"name":"filesystem","status":"connected","toolCount":2}]}}\n' "$id" ;;
+          *autohand.mcp.listTools*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"tools":[{"name":"read_file","description":"Read a file","serverName":"filesystem"}]}}\n' "$id" ;;
+          *autohand.mcp.getServerConfigs*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"configs":[{"name":"filesystem","transport":"stdio","command":"node","args":["server.js"],"env":{"MODE":"safe"},"autoConnect":true}]}}\n' "$id" ;;
+          *autohand.prompt*)
+            (sleep "${AUTOHAND_PROMPT_DELAY:-0.2}"; printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id") & ;;
           *autohand.getSupportedCommands*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"commands":["help","deep-research","autoresearch"]}}\n' "$id" ;;
           *autohand.goal.get*)

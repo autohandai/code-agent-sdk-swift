@@ -106,6 +106,7 @@ public struct LoopContext: Sendable {
     public let model: ModelID
     public let toolRegistry: ToolRegistry
     public let options: LoopOptions?
+    public let permissionManager: PermissionManager?
 
     public init(
         agent: Agent,
@@ -113,7 +114,8 @@ public struct LoopContext: Sendable {
         provider: any Provider,
         model: ModelID,
         toolRegistry: ToolRegistry,
-        options: LoopOptions? = nil
+        options: LoopOptions? = nil,
+        permissionManager: PermissionManager? = nil
     ) {
         self.agent = agent
         self.prompt = prompt
@@ -121,6 +123,7 @@ public struct LoopContext: Sendable {
         self.model = model
         self.toolRegistry = toolRegistry
         self.options = options
+        self.permissionManager = permissionManager
     }
 }
 
@@ -169,125 +172,16 @@ public final class LoopStrategyRegistry: @unchecked Sendable {
 
 public struct ReActStrategy: LoopStrategy {
     public let loopType: LoopType = .react
-    private let maxDuplicateCount = 2
 
     public func execute(context: LoopContext) async throws -> RunResult {
-        let agent = context.agent
-        let provider = context.provider
-        let model = context.model.rawValue
-        let toolRegistry = context.toolRegistry
-        let callbacks = context.options?.callbacks
-
-        let userMessage = Message.user(UserMessage(content: context.prompt))
-        var session = Session(
-            id: SessionID("sess_\(Int(Date().timeIntervalSince1970 * 1000))_\(Int.random(in: 0..<10000))"),
-            messages: [userMessage],
-            workingDirectory: agent.cwd ?? FileManager.default.currentDirectoryPath
+        try await executeAgentLoop(
+            context: context,
+            initialMessages: buildInitialMessages(context: context)
         )
-
-        var messages = await buildInitialMessages(context: context)
-        var recentToolCalls: [String: Int] = [:]
-
-        for turn in 0..<agent.maxTurns {
-            await callbacks?.onTurnStart?(turn + 1, agent.maxTurns)
-
-            let schemas = toolRegistry.getSchemas()
-            await callbacks?.onRequestStart?(messages.count, schemas.count)
-
-            let response = try await provider.chat(
-                messages: messages,
-                model: model,
-                tools: schemas,
-                options: nil
-            )
-
-            await callbacks?.onResponse?(
-                response.toolCalls != nil && !response.toolCalls!.isEmpty,
-                response.content.count
-            )
-
-            if let toolCalls = response.toolCalls, !toolCalls.isEmpty {
-                let assistantMsg = Message.assistant(AssistantMessage(
-                    content: response.content,
-                    toolCalls: toolCalls
-                ))
-                session.messages.append(assistantMsg)
-                messages.append(assistantMsg)
-
-                for toolCall in toolCalls {
-                    let signature = "\(toolCall.name.rawValue):\(toolCall.arguments)"
-                    let count = recentToolCalls[signature] ?? 0
-                    if count >= maxDuplicateCount {
-                        let warning = Message.tool(ToolMessage(
-                            content: "WARNING: Duplicate tool call detected. Please review previous results.",
-                            toolCallID: toolCall.id,
-                            toolName: toolCall.name
-                        ))
-                        session.messages.append(warning)
-                        messages.append(warning)
-                        continue
-                    }
-                    recentToolCalls[signature] = count + 1
-
-                    await callbacks?.onToolCall?(ToolCallEvent(
-                        toolName: toolCall.name.rawValue,
-                        arguments: toolCall.arguments,
-                        id: toolCall.id
-                    ))
-
-                    let result: ToolResult
-                    do {
-                        result = try await toolRegistry.execute(toolCall: toolCall)
-                    } catch {
-                        result = .failure(error: error.localizedDescription)
-                    }
-
-                    await callbacks?.onToolResult?(ToolResultEvent(
-                        toolName: toolCall.name.rawValue,
-                        id: toolCall.id,
-                        data: result.data,
-                        error: result.error
-                    ))
-
-                    let toolMsg = Message.tool(ToolMessage(
-                        content: result.data ?? result.error ?? "",
-                        toolCallID: toolCall.id,
-                        toolName: toolCall.name
-                    ))
-                    session.messages.append(toolMsg)
-                    messages.append(toolMsg)
-                }
-            } else {
-                let finalMsg = Message.assistant(AssistantMessage(content: response.content))
-                session.messages.append(finalMsg)
-                await callbacks?.onComplete?(turn + 1, response.content)
-                return .success(finalOutput: response.content, session: session, turns: turn + 1)
-            }
-        }
-
-        return .maxTurnsReached(session: session, turns: agent.maxTurns)
     }
 
     public func buildInitialMessages(context: LoopContext) async -> [Message] {
-        let agent = context.agent
-        let toolDefs = context.toolRegistry.getAllTools()
-        let toolDescriptions = toolDefs.map { "- \($0.name): \($0.description)" }.joined(separator: "\n")
-
-        let systemPrompt = """
-        \(agent.instructions)
-
-        You have access to the following tools:
-        \(toolDescriptions)
-
-        When using tools, respond with tool calls in the required format.
-        After receiving tool results, analyze them and decide on next steps.
-        When you have completed the task, provide a final answer without tool calls.
-        """
-
-        return [
-            .system(SystemMessage(content: systemPrompt)),
-            .user(UserMessage(content: context.prompt)),
-        ]
+        baseMessages(context: context)
     }
 }
 
@@ -302,15 +196,17 @@ public struct PlanAndExecuteStrategy: LoopStrategy {
     }
 
     public func execute(context: LoopContext) async throws -> RunResult {
-        let reactStrategy = ReActStrategy()
-        return try await reactStrategy.execute(context: context)
+        try await executeAgentLoop(
+            context: context,
+            initialMessages: buildInitialMessages(context: context)
+        )
     }
 
     public func buildInitialMessages(context: LoopContext) async -> [Message] {
-        let reactStrategy = ReActStrategy()
-        var messages = await reactStrategy.buildInitialMessages(context: context)
+        var messages = baseMessages(context: context)
+        let planningSteps = max(1, context.options?.maxPlanningSteps ?? maxPlanningSteps)
         let planningPrompt = """
-        Before executing, create a step-by-step plan with at most \(maxPlanningSteps) steps.
+        Before executing, create a step-by-step plan with at most \(planningSteps) steps.
         Then execute each step using the available tools.
         """
         messages.append(.user(UserMessage(content: planningPrompt)))
@@ -329,15 +225,17 @@ public struct ParallelStrategy: LoopStrategy {
     }
 
     public func execute(context: LoopContext) async throws -> RunResult {
-        let reactStrategy = ReActStrategy()
-        return try await reactStrategy.execute(context: context)
+        try await executeAgentLoop(
+            context: context,
+            initialMessages: buildInitialMessages(context: context)
+        )
     }
 
     public func buildInitialMessages(context: LoopContext) async -> [Message] {
-        let reactStrategy = ReActStrategy()
-        var messages = await reactStrategy.buildInitialMessages(context: context)
+        var messages = baseMessages(context: context)
+        let parallelCalls = max(1, context.options?.maxParallelCalls ?? maxParallelCalls)
         let parallelPrompt = """
-        When possible, execute up to \(maxParallelCalls) independent tool calls in parallel.
+        When possible, execute up to \(parallelCalls) independent tool calls in parallel.
         Only parallelize calls that don't depend on each other's results.
         """
         messages.append(.user(UserMessage(content: parallelPrompt)))
@@ -358,18 +256,152 @@ public struct ReflexionStrategy: LoopStrategy {
     }
 
     public func execute(context: LoopContext) async throws -> RunResult {
-        let reactStrategy = ReActStrategy()
-        return try await reactStrategy.execute(context: context)
+        try await executeAgentLoop(
+            context: context,
+            initialMessages: buildInitialMessages(context: context)
+        )
     }
 
     public func buildInitialMessages(context: LoopContext) async -> [Message] {
-        let reactStrategy = ReActStrategy()
-        var messages = await reactStrategy.buildInitialMessages(context: context)
+        var messages = baseMessages(context: context)
+        let steps = max(1, context.options?.reflectionSteps ?? reflectionSteps)
+        let threshold = min(1, max(0, context.options?.qualityThreshold ?? qualityThreshold))
         let reflectionPrompt = """
-        After completing the task, reflect on your work for up to \(reflectionSteps) rounds.
-        If quality is below \(qualityThreshold), revise and improve.
+        After completing the task, reflect on your work for up to \(steps) rounds.
+        If quality is below \(threshold), revise and improve.
         """
         messages.append(.user(UserMessage(content: reflectionPrompt)))
         return messages
+    }
+}
+
+private func baseMessages(context: LoopContext) -> [Message] {
+    let toolDescriptions = context.toolRegistry.getAllTools()
+        .map { "- \($0.name): \($0.description)" }
+        .joined(separator: "\n")
+    let availability = toolDescriptions.isEmpty ? "No tools are enabled." : """
+        You have access to the following tools:
+        \(toolDescriptions)
+        """
+    let systemPrompt = """
+    \(context.agent.instructions)
+
+    \(availability)
+
+    When using tools, respond with tool calls in the required format.
+    After receiving tool results, analyze them and decide on next steps.
+    When you have completed the task, provide a final answer without tool calls.
+    """
+    return [
+        .system(SystemMessage(content: systemPrompt)),
+        .user(UserMessage(content: context.prompt)),
+    ]
+}
+
+private func executeAgentLoop(
+    context: LoopContext,
+    initialMessages: [Message]
+) async throws -> RunResult {
+    let agent = context.agent
+    let callbacks = context.options?.callbacks
+    let userMessage = Message.user(UserMessage(content: context.prompt))
+    var session = Session(
+        id: SessionID("sess_\(Int(Date().timeIntervalSince1970 * 1000))_\(Int.random(in: 0..<10000))"),
+        messages: [userMessage],
+        workingDirectory: agent.cwd ?? FileManager.default.currentDirectoryPath
+    )
+    var messages = initialMessages
+    var recentToolCalls: [String: Int] = [:]
+
+    for turn in 0..<agent.maxTurns {
+        try Task.checkCancellation()
+        await callbacks?.onTurnStart?(turn + 1, agent.maxTurns)
+        let schemas = context.toolRegistry.getSchemas()
+        await callbacks?.onRequestStart?(messages.count, schemas.count)
+        let response = try await context.provider.chat(
+            messages: messages,
+            model: context.model.rawValue,
+            tools: schemas,
+            options: nil
+        )
+        await callbacks?.onResponse?(
+            response.toolCalls?.isEmpty == false,
+            response.content.count
+        )
+
+        guard let toolCalls = response.toolCalls, !toolCalls.isEmpty else {
+            session.messages.append(.assistant(AssistantMessage(content: response.content)))
+            await callbacks?.onComplete?(turn + 1, response.content)
+            return .success(finalOutput: response.content, session: session, turns: turn + 1)
+        }
+
+        let assistantMessage = Message.assistant(AssistantMessage(
+            content: response.content,
+            toolCalls: toolCalls
+        ))
+        session.messages.append(assistantMessage)
+        messages.append(assistantMessage)
+
+        for toolCall in toolCalls {
+            try Task.checkCancellation()
+            let signature = "\(toolCall.name.rawValue):\(toolCall.arguments)"
+            let count = recentToolCalls[signature] ?? 0
+            if count >= 2 {
+                let warning = Message.tool(ToolMessage(
+                    content: "WARNING: Duplicate tool call detected. Please review previous results.",
+                    toolCallID: toolCall.id,
+                    toolName: toolCall.name
+                ))
+                session.messages.append(warning)
+                messages.append(warning)
+                continue
+            }
+            recentToolCalls[signature] = count + 1
+
+            await callbacks?.onToolCall?(ToolCallEvent(
+                toolName: toolCall.name.rawValue,
+                arguments: toolCall.arguments,
+                id: toolCall.id
+            ))
+
+            let result = await executeTool(toolCall, context: context)
+            await callbacks?.onToolResult?(ToolResultEvent(
+                toolName: toolCall.name.rawValue,
+                id: toolCall.id,
+                data: result.data,
+                error: result.error
+            ))
+            let toolMessage = Message.tool(ToolMessage(
+                content: result.data ?? result.error ?? "",
+                toolCallID: toolCall.id,
+                toolName: toolCall.name
+            ))
+            session.messages.append(toolMessage)
+            messages.append(toolMessage)
+        }
+        await callbacks?.onTurnEnd?(turn + 1, agent.maxTurns)
+    }
+    return .maxTurnsReached(session: session, turns: agent.maxTurns)
+}
+
+private func executeTool(_ toolCall: ToolCall, context: LoopContext) async -> ToolResult {
+    if let permissionManager = context.permissionManager {
+        let arguments = context.toolRegistry.parameters(for: toolCall)
+        let permission = await permissionManager.requestPermission(.init(
+            tool: toolCall.name,
+            args: arguments,
+            path: arguments["file_path"]?.value as? String,
+            command: arguments["command"]?.value as? String
+        ))
+        guard permission.continue else {
+            return .failure(
+                error: permission.reason ?? "Permission \(permission.decision.rawValue)"
+            )
+        }
+    }
+    do {
+        return try await context.toolRegistry.execute(toolCall: toolCall)
+    } catch {
+        return .failure(error: error.localizedDescription)
     }
 }

@@ -137,6 +137,12 @@ import Foundation
         #expect(names.contains(.gitStatus))
     }
 
+    @Test func defaultToolRegistryCanRestrictBuiltIns() {
+        let registry = DefaultToolRegistry(allowedTools: [.readFile, .gitStatus])
+        #expect(registry.getSchemas().map(\.name).sorted() == ["git_status", "read_file"])
+        #expect(registry.getTool(name: "write_file") == nil)
+    }
+
     @Test func webSearchTool() async throws {
         let tool = WebSearchTool()
         #expect(tool.name == "web_search")

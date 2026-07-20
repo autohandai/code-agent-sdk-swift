@@ -44,7 +44,7 @@ Then depend on `AgentSDK` from your target:
 )
 ```
 
-## CLI-backed goals and autoresearch
+## CLI-backed discovery, goals, and autoresearch
 
 On macOS, `AutohandCLIClient` adds the same typed replayable autoresearch ledger
 available in the TypeScript 1.0.3 SDK while preserving the existing direct-provider
@@ -89,6 +89,33 @@ let snapshot = try await client.goal()
 let templates = try await client.goalTemplates()
 ```
 
+For a single high-level lifecycle object, use `AutohandSDK`. It owns an
+`AutohandCLIClient` and exposes typed skill-registry and MCP discovery:
+
+```swift
+let sdk = AutohandSDK(configuration: .init(cwd: "."))
+try sdk.start()
+defer { sdk.close() }
+
+let registry = try await sdk.getSkillsRegistry(.init(forceRefresh: true))
+let installation = try await sdk.installSkill(.init(
+    skillName: "release-readiness",
+    scope: .project,
+    force: false
+))
+let servers = try await sdk.listMCPServers()
+let tools = try await sdk.listMCPTools(.init(serverName: "filesystem"))
+let configs = try await sdk.getMCPServerConfigs()
+```
+
+These methods call `autohand.getSkillsRegistry`, `autohand.installSkill`,
+`autohand.mcp.listServers`, `autohand.mcp.listTools`, and
+`autohand.mcp.getServerConfigs` with the CLI's exact camel-case wire keys.
+Installing a skill changes user or project state; discovery calls are read-only.
+
+`AutohandSDK` is the macOS CLI-facing API. The cross-platform `Agent` and
+`Runner` remain direct-provider APIs and do not silently launch a subprocess.
+
 `AutohandCLIConfiguration` also mirrors current CLI session, AGENTS.md, token,
 skill-source, auto-mode, prompt, feature-flag, and Autohand AI environment
 settings. A non-nil `features` value is applied immediately after startup.
@@ -121,6 +148,10 @@ let result = try await Runner.runSync(
 
 print(result)
 ```
+
+Only the names in `Agent.tools` are advertised to the provider and executable.
+An empty list exposes no tools. When a `PermissionManager` is installed on
+`Runner`, every requested tool is checked before its implementation runs.
 
 ## Streaming
 
@@ -156,6 +187,7 @@ for try await event in stream {
 - [Plan Mode](./docs/plan-mode.md)
 - [Memory](./docs/memory.md)
 - [Replayable Autoresearch](./docs/autoresearch.md)
+- [Reliability and Performance](./docs/reliability-and-performance.md)
 - [Migration](./docs/MIGRATION.md)
 - [SDLC Workflows](./docs/sdlc-workflows.md)
 - [Examples](./Examples/README.md)
@@ -165,4 +197,5 @@ for try await event in stream {
 ```bash
 swift build
 swift test
+Scripts/benchmark-startup.sh
 ```

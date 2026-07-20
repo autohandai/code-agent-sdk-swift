@@ -336,15 +336,15 @@ public final class AutohandCLIClient: @unchecked Sendable {
 
   private let configuration: AutohandCLIConfiguration
   private let eventHandler: EventHandler?
-  private let requestLock = NSLock()
+  private let promptGate = RequestGate()
+  private let lifecycleLock = NSLock()
   private let stateLock = NSLock()
-  private let lines = LineQueue()
-  private let encoder = JSONEncoder()
-  private let decoder = JSONDecoder()
+  private let inputLock = NSLock()
   private var nextID = 0
   private var process: Process?
   private var input: FileHandle?
   private var output: FileHandle?
+  private var responseRouter: ResponseRouter?
 
   public init(configuration: AutohandCLIConfiguration = .init(), onEvent: EventHandler? = nil) {
     self.configuration = configuration
@@ -352,18 +352,31 @@ public final class AutohandCLIClient: @unchecked Sendable {
   }
 
   public var isRunning: Bool {
-    stateLock.withLock { process?.isRunning == true }
+    stateLock.withLock {
+      process?.isRunning == true && responseRouter?.isFinished == false
+    }
   }
 
   public func start() throws {
+    lifecycleLock.lock()
+    defer { lifecycleLock.unlock() }
+
+    let existing = stateLock.withLock { (process, responseRouter) }
+    if let existingProcess = existing.0 {
+      guard !existingProcess.isRunning || existing.1?.isFinished == true else {
+        throw AutohandCLIClientError.alreadyRunning
+      }
+      closeGeneration()
+    }
+
+    let responses = ResponseRouter()
     try stateLock.withLock {
-      guard process?.isRunning != true else { throw AutohandCLIClientError.alreadyRunning }
+      guard process == nil else { throw AutohandCLIClientError.alreadyRunning }
 
       let process = Process()
       let stdinPipe = Pipe()
       let stdoutPipe = Pipe()
       let stderrPipe = Pipe()
-      lines.reset()
 
       if let cliPath = configuration.cliPath, !cliPath.isEmpty {
         process.executableURL = URL(fileURLWithPath: cliPath)
@@ -380,9 +393,15 @@ public final class AutohandCLIClient: @unchecked Sendable {
         ["AUTOHAND_STREAM_TOOL_OUTPUT": "1"], uniquingKeysWith: { _, new in new }
       ).merging(configuration.cliEnvironment, uniquingKeysWith: { _, new in new })
 
-      stdoutPipe.fileHandleForReading.readabilityHandler = { [lines] handle in
+      stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self, responses] handle in
         let data = handle.availableData
-        if data.isEmpty { lines.finish() } else { lines.append(data) }
+        if data.isEmpty {
+          responses.finish()
+        } else {
+          responses.append(data) { line in
+            self?.handleNotificationLine(line)
+          }
+        }
       }
       let debug = configuration.debug
       stderrPipe.fileHandleForReading.readabilityHandler = { handle in
@@ -390,7 +409,7 @@ public final class AutohandCLIClient: @unchecked Sendable {
         guard debug, !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
         FileHandle.standardError.write(Data("[autohand-cli] \(text)".utf8))
       }
-      process.terminationHandler = { [lines] _ in lines.finish() }
+      process.terminationHandler = { [responses] _ in responses.finish() }
 
       do {
         try process.run()
@@ -402,35 +421,58 @@ public final class AutohandCLIClient: @unchecked Sendable {
       self.process = process
       self.input = stdinPipe.fileHandleForWriting
       self.output = stdoutPipe.fileHandleForReading
+      self.responseRouter = responses
     }
-    if let features = configuration.features {
-      let _: AutohandApplyFlagSettingsResult = try requestBlocking(
-        method: "autohand.applyFlagSettings",
-        parameters: ApplyFlagSettingsParameters(settings: .init(features: features)))
+    do {
+      if let features = configuration.features {
+        let _: AutohandApplyFlagSettingsResult = try requestBlocking(
+          method: "autohand.applyFlagSettings",
+          parameters: ApplyFlagSettingsParameters(settings: .init(features: features)))
+      }
+    } catch {
+      closeGeneration()
+      throw error
     }
   }
 
   public func close() {
-    stateLock.withLock {
-      output?.readabilityHandler = nil
-      try? input?.close()
-      input = nil
-      output = nil
-      if let process, process.isRunning {
-        process.terminate()
-        let deadline = Date().addingTimeInterval(2)
-        while process.isRunning && deadline.timeIntervalSinceNow > 0 {
-          Thread.sleep(forTimeInterval: 0.01)
-        }
-        #if os(macOS)
-          if process.isRunning {
-            _ = Darwin.kill(process.processIdentifier, SIGKILL)
-          }
-        #endif
-        process.waitUntilExit()
+    lifecycleLock.withLock {
+      closeGeneration()
+    }
+  }
+
+  private func closeGeneration() {
+    let owned: (
+      process: Process?, input: FileHandle?, output: FileHandle?, responses: ResponseRouter?
+    ) = inputLock.withLock {
+      stateLock.withLock {
+        let owned = (process, input, output, responseRouter)
+        self.process = nil
+        self.input = nil
+        self.output = nil
+        self.responseRouter = nil
+        return owned
       }
-      self.process = nil
-      lines.finish()
+    }
+
+    owned.output?.readabilityHandler = nil
+    inputLock.withLock {
+      try? owned.input?.close()
+    }
+    owned.responses?.finish()
+
+    if let process = owned.process, process.isRunning {
+      process.terminate()
+      let deadline = Date().addingTimeInterval(2)
+      while process.isRunning && deadline.timeIntervalSinceNow > 0 {
+        Thread.sleep(forTimeInterval: 0.01)
+      }
+      #if os(macOS)
+        if process.isRunning {
+          _ = Darwin.kill(process.processIdentifier, SIGKILL)
+        }
+      #endif
+      process.waitUntilExit()
     }
   }
 
@@ -475,6 +517,32 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(
       method: "autohand.applyFlagSettings",
       parameters: ApplyFlagSettingsParameters(settings: .init(features: features)))
+  }
+
+  public func getSkillsRegistry(
+    _ parameters: GetSkillsRegistryParameters = .init()
+  ) async throws -> GetSkillsRegistryResult {
+    try await request(method: "autohand.getSkillsRegistry", parameters: parameters)
+  }
+
+  public func installSkill(_ parameters: InstallSkillParameters) async throws
+    -> InstallSkillResult
+  {
+    try await request(method: "autohand.installSkill", parameters: parameters)
+  }
+
+  public func listMCPServers() async throws -> MCPListServersResult {
+    try await request(method: "autohand.mcp.listServers", parameters: EmptyParameters())
+  }
+
+  public func listMCPTools(
+    _ parameters: MCPListToolsParameters = .init()
+  ) async throws -> MCPListToolsResult {
+    try await request(method: "autohand.mcp.listTools", parameters: parameters)
+  }
+
+  public func getMCPServerConfigs() async throws -> MCPGetServerConfigsResult {
+    try await request(method: "autohand.mcp.getServerConfigs", parameters: EmptyParameters())
   }
 
   public func goal() async throws -> GoalSnapshotResult {
@@ -561,22 +629,36 @@ public final class AutohandCLIClient: @unchecked Sendable {
     method: String,
     parameters: Parameters
   ) async throws -> Result {
-    try await Task.detached { [self] in
-      try requestBlocking(method: method, parameters: parameters)
-    }.value
+    let cancellation = RequestCancellation()
+    return try await withTaskCancellationHandler {
+      try Task.checkCancellation()
+      return try await Task.detached { [self, cancellation] in
+        try requestBlocking(
+          method: method, parameters: parameters, cancellation: cancellation)
+      }.value
+    } onCancel: {
+      cancellation.cancel()
+      promptGate.wake()
+    }
   }
 
   private func requestBlocking<Parameters: Encodable, Result: Decodable>(
     method: String,
-    parameters: Parameters
+    parameters: Parameters,
+    cancellation: RequestCancellation? = nil
   ) throws -> Result {
-    requestLock.lock()
-    defer { requestLock.unlock() }
+    let gate = method == "autohand.prompt" ? promptGate : nil
+    if let gate {
+      guard gate.acquire(cancellation: cancellation) else { throw CancellationError() }
+    }
+    defer { gate?.release() }
 
-    guard isRunning, let input else { throw AutohandCLIClientError.notRunning }
-    nextID += 1
-    let id = nextID
-    let parameterData = try encoder.encode(parameters)
+    if cancellation?.isCancelled == true { throw CancellationError() }
+    let id = stateLock.withLock { () -> Int in
+      nextID += 1
+      return nextID
+    }
+    let parameterData = try JSONEncoder().encode(parameters)
     let parameterObject = try JSONSerialization.jsonObject(with: parameterData)
     let request: [String: Any] = [
       "jsonrpc": "2.0",
@@ -586,22 +668,44 @@ public final class AutohandCLIClient: @unchecked Sendable {
     ]
     var encoded = try JSONSerialization.data(withJSONObject: request)
     encoded.append(0x0A)
+    let connection = try inputLock.withLock {
+      try stateLock.withLock { () throws -> (input: FileHandle, responses: ResponseRouter) in
+        guard process?.isRunning == true, let input, let responseRouter else {
+          throw AutohandCLIClientError.notRunning
+        }
+        return (input, responseRouter)
+      }
+    }
+    let responses = connection.responses
+    responses.register(id: id)
+    defer { responses.unregister(id: id) }
+    cancellation?.bind(responses: responses)
+    defer { cancellation?.unbind(responses: responses) }
+    if cancellation?.isCancelled == true { throw CancellationError() }
     do {
-      try input.write(contentsOf: encoded)
+      try inputLock.withLock {
+        let input = try stateLock.withLock { () throws -> FileHandle in
+          guard process?.isRunning == true,
+            self.input === connection.input,
+            responseRouter === responses
+          else {
+            throw AutohandCLIClientError.notRunning
+          }
+          return connection.input
+        }
+        try input.write(contentsOf: encoded)
+      }
     } catch {
+      if error is AutohandCLIClientError { throw error }
       throw AutohandCLIClientError.transport(error.localizedDescription)
     }
 
     let deadline = Date().addingTimeInterval(max(configuration.timeout, 0.001))
-    while let line = lines.take(until: deadline) {
+    switch responses.take(id: id, until: deadline, cancellation: cancellation) {
+    case .line(let line):
       guard let object = try JSONSerialization.jsonObject(with: line) as? [String: Any] else {
-        continue
+        throw AutohandCLIClientError.invalidResponse("Invalid JSON-RPC response for \(method)")
       }
-      if let notificationMethod = object["method"] as? String, object["id"] == nil {
-        handleNotification(method: notificationMethod, parameters: object["params"])
-        continue
-      }
-      guard (object["id"] as? Int) == id else { continue }
       if let error = object["error"] as? [String: Any] {
         throw AutohandCLIClientError.rpc(
           method: method,
@@ -612,9 +716,22 @@ public final class AutohandCLIClient: @unchecked Sendable {
         throw AutohandCLIClientError.invalidResponse("Missing result for \(method)")
       }
       let data = try JSONSerialization.data(withJSONObject: result)
-      return try decoder.decode(Result.self, from: data)
+      return try JSONDecoder().decode(Result.self, from: data)
+    case .cancelled:
+      throw CancellationError()
+    case .finished:
+      throw AutohandCLIClientError.transport("CLI stdout closed while waiting for \(method)")
+    case .timeout:
+      throw AutohandCLIClientError.timeout(method: method, seconds: configuration.timeout)
     }
-    throw AutohandCLIClientError.timeout(method: method, seconds: configuration.timeout)
+  }
+
+  private func handleNotificationLine(_ line: Data) {
+    guard let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
+      let method = object["method"] as? String,
+      object["id"] == nil
+    else { return }
+    handleNotification(method: method, parameters: object["params"])
   }
 
   private func handleNotification(method: String, parameters: Any?) {
@@ -626,11 +743,15 @@ public final class AutohandCLIClient: @unchecked Sendable {
 
     switch method {
     case "autohand.turnEnd":
-      guard let event = try? decoder.decode(AutohandTurnEndEvent.self, from: data) else { return }
+      guard let event = try? JSONDecoder().decode(AutohandTurnEndEvent.self, from: data) else {
+        return
+      }
       eventHandler(.turnEnd(event))
     case "autohand.autoresearch.start", "autohand.autoresearch.status",
       "autohand.autoresearch.pause":
-      guard let payload = try? decoder.decode(AutoresearchLifecyclePayload.self, from: data) else {
+      guard
+        let payload = try? JSONDecoder().decode(AutoresearchLifecyclePayload.self, from: data)
+      else {
         return
       }
       let phase = method.split(separator: ".").last.map(String.init) ?? "status"
@@ -648,12 +769,13 @@ public final class AutohandCLIClient: @unchecked Sendable {
             message: payload.message,
             timestamp: payload.timestamp)))
     case "autohand.autoresearch.event":
-      guard let event = try? decoder.decode(AutoresearchOperationEvent.self, from: data) else {
+      guard let event = try? JSONDecoder().decode(AutoresearchOperationEvent.self, from: data)
+      else {
         return
       }
       eventHandler(.autoresearchOperation(event))
     default:
-      let payload = (try? decoder.decode([String: AnyCodable].self, from: data)) ?? [:]
+      let payload = (try? JSONDecoder().decode([String: AnyCodable].self, from: data)) ?? [:]
       eventHandler(
         .notification(
           method: method, payload: payload, timestamp: parameters["timestamp"] as? String))
@@ -661,30 +783,152 @@ public final class AutohandCLIClient: @unchecked Sendable {
   }
 }
 
-private final class LineQueue: @unchecked Sendable {
-  private let condition = NSCondition()
-  private var buffer = Data()
-  private var lines: [Data] = []
-  private var finished = false
+private final class RequestCancellation: @unchecked Sendable {
+  private let lock = NSLock()
+  private var cancelled = false
+  private weak var responses: ResponseRouter?
 
-  func append(_ data: Data) {
-    condition.lock()
-    buffer.append(data)
-    while let newline = buffer.firstIndex(of: 0x0A) {
-      lines.append(buffer.prefix(upTo: newline))
-      buffer.removeSubrange(...newline)
+  var isCancelled: Bool { lock.withLock { cancelled } }
+
+  func cancel() {
+    let responses = lock.withLock { () -> ResponseRouter? in
+      cancelled = true
+      return self.responses
     }
+    responses?.wake()
+  }
+
+  func bind(responses: ResponseRouter) {
+    let alreadyCancelled = lock.withLock { () -> Bool in
+      self.responses = responses
+      return cancelled
+    }
+    if alreadyCancelled { responses.wake() }
+  }
+
+  func unbind(responses: ResponseRouter) {
+    lock.withLock {
+      if self.responses === responses { self.responses = nil }
+    }
+  }
+}
+
+private final class RequestGate: @unchecked Sendable {
+  private let condition = NSCondition()
+  private var occupied = false
+
+  func acquire(cancellation: RequestCancellation?) -> Bool {
+    condition.lock()
+    defer { condition.unlock() }
+    while occupied && cancellation?.isCancelled != true {
+      condition.wait()
+    }
+    guard cancellation?.isCancelled != true else { return false }
+    occupied = true
+    return true
+  }
+
+  func release() {
+    condition.lock()
+    occupied = false
     condition.broadcast()
     condition.unlock()
   }
 
-  func take(until deadline: Date) -> Data? {
+  func wake() {
+    condition.lock()
+    condition.broadcast()
+    condition.unlock()
+  }
+}
+
+private enum ResponseWaitResult {
+  case line(Data)
+  case cancelled
+  case finished
+  case timeout
+}
+
+/// Frames stdout once and dispatches responses by JSON-RPC ID.
+///
+/// A caller may abandon its waiter without leaving a stale response for the
+/// next request. Notifications are delivered independently of request waits.
+private final class ResponseRouter: @unchecked Sendable {
+  private let condition = NSCondition()
+  private let appendLock = NSLock()
+  private var buffer = Data()
+  private var pending: Set<Int> = []
+  private var responses: [Int: Data] = [:]
+  private var finished = false
+
+  var isFinished: Bool {
+    condition.withLock { finished }
+  }
+
+  func append(_ data: Data, onNotification: (Data) -> Void) {
+    appendLock.withLock {
+      var framed: [Data] = []
+      condition.lock()
+      buffer.append(data)
+      while let newline = buffer.firstIndex(of: 0x0A) {
+        framed.append(buffer.prefix(upTo: newline))
+        buffer.removeSubrange(...newline)
+      }
+      condition.unlock()
+
+      for line in framed {
+        guard let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any]
+        else { continue }
+        if let id = object["id"] as? Int {
+          condition.lock()
+          if pending.contains(id) {
+            responses[id] = line
+            condition.broadcast()
+          }
+          condition.unlock()
+        } else if object["method"] is String {
+          onNotification(line)
+        }
+      }
+    }
+  }
+
+  func register(id: Int) {
+    condition.lock()
+    pending.insert(id)
+    responses.removeValue(forKey: id)
+    condition.unlock()
+  }
+
+  func unregister(id: Int) {
+    condition.lock()
+    pending.remove(id)
+    responses.removeValue(forKey: id)
+    condition.unlock()
+  }
+
+  func take(
+    id: Int,
+    until deadline: Date,
+    cancellation: RequestCancellation?
+  ) -> ResponseWaitResult {
     condition.lock()
     defer { condition.unlock() }
-    while lines.isEmpty && !finished && deadline.timeIntervalSinceNow > 0 {
+    while responses[id] == nil && !finished && cancellation?.isCancelled != true
+      && deadline.timeIntervalSinceNow > 0
+    {
       condition.wait(until: deadline)
     }
-    return lines.isEmpty ? nil : lines.removeFirst()
+    if let line = responses.removeValue(forKey: id) { return .line(line) }
+    if cancellation?.isCancelled == true { return .cancelled }
+    if finished { return .finished }
+    return .timeout
+  }
+
+  func wake() {
+    condition.lock()
+    condition.broadcast()
+    condition.unlock()
   }
 
   func finish() {
@@ -694,11 +938,4 @@ private final class LineQueue: @unchecked Sendable {
     condition.unlock()
   }
 
-  func reset() {
-    condition.lock()
-    buffer.removeAll(keepingCapacity: true)
-    lines.removeAll(keepingCapacity: true)
-    finished = false
-    condition.unlock()
-  }
 }

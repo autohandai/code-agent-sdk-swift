@@ -12,6 +12,10 @@ let package = Package(
             name: "AgentSDK",
             targets: ["AgentSDK"]
         ),
+        .executable(
+            name: "agent-sdk-benchmark",
+            targets: ["AgentSDKBenchmark"]
+        ),
     ],
     targets: [
         .target(
@@ -22,6 +26,12 @@ let package = Package(
             name: "AgentSDKTests",
             dependencies: ["AgentSDK"],
             path: "Tests"
+        ),
+        .executableTarget(
+            name: "AgentSDKBenchmark",
+            dependencies: ["AgentSDK"],
+            path: "Benchmarks",
+            exclude: ["fixture.c"]
         ),
     ]
 )

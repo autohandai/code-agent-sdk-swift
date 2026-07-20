@@ -2,6 +2,33 @@
 
 Complete reference for the Swift AgentSDK.
 
+## AutohandSDK (macOS)
+
+`AutohandSDK` is the high-level CLI facade. It owns a public
+`AutohandCLIClient`, provides `start()`, `close()`, and `isRunning`, and forwards
+typed discovery operations:
+
+```swift
+let sdk = AutohandSDK(configuration: .init(cwd: "."))
+try sdk.start()
+defer { sdk.close() }
+
+let registry: GetSkillsRegistryResult = try await sdk.getSkillsRegistry(
+    .init(forceRefresh: true)
+)
+let installation: InstallSkillResult = try await sdk.installSkill(
+    .init(skillName: "release-readiness", scope: .project, force: true)
+)
+let servers: MCPListServersResult = try await sdk.listMCPServers()
+let tools: MCPListToolsResult = try await sdk.listMCPTools(
+    .init(serverName: "filesystem")
+)
+let configs: MCPGetServerConfigsResult = try await sdk.getMCPServerConfigs()
+```
+
+The direct-provider `Agent` remains independent of CLI lifecycle. This keeps
+existing iOS and provider-backed integrations source-compatible.
+
 ## AutohandCLIClient (macOS)
 
 `AutohandCLIClient` owns an Autohand CLI JSON-RPC subprocess. Configure it with
@@ -13,6 +40,8 @@ Complete reference for the Swift AgentSDK.
 - `goal()`, `createGoal(_:)`, `updateGoal(_:)`, `clearGoal()`
 - `queueGoal(_:)`, `startQueuedGoal()`, `goalTemplates()`
 - `applyFeatureSettings(_:)`
+- `getSkillsRegistry(_:)`, `installSkill(_:)`
+- `listMCPServers()`, `listMCPTools(_:)`, `getMCPServerConfigs()`
 - `startAutoresearch(_:)`, `autoresearchStatus()`, `stopAutoresearch()`
 - `autoresearchHistory()`, `replayAutoresearch(_:)`, `rescoreAutoresearch(_:)`
 - `compareAutoresearch(_:)`, `autoresearchPareto()`, `pinAutoresearch(_:)`
@@ -33,6 +62,24 @@ remain typed instead of becoming decoding errors.
 persistence/resume, AGENTS.md behavior, token thresholds, skill sources,
 auto-mode/auto-commit, prompt files, provider environment, and startup
 `AutohandFeatureFlagSettings`.
+
+### Discovery types
+
+- `GetSkillsRegistryParameters(forceRefresh:)`
+- `GetSkillsRegistryResult`, `CommunitySkill`, `SkillsRegistryCategory`
+- `InstallSkillParameters(skillName:scope:force:)`, `SkillInstallScope`
+- `InstallSkillResult`
+- `MCPServerSummary`, `MCPListServersResult`
+- `MCPListToolsParameters(serverName:)`, `MCPToolSummary`, `MCPListToolsResult`
+- `MCPTransport`, `MCPServerConfigEntry`, `MCPGetServerConfigsResult`
+
+Parameter properties encode as the CLI's exact `forceRefresh`, `skillName`, and
+`serverName` JSON keys. Skill scope is restricted to `.user` or `.project`, and
+MCP transport is restricted to `.stdio`, `.sse`, or `.http`.
+
+Async requests propagate caller cancellation as `CancellationError`. If a
+post-launch feature initialization RPC fails, `start()` closes the child and
+restores a retryable stopped state before rethrowing.
 
 ## Agent
 
@@ -273,6 +320,10 @@ public final class DefaultToolRegistry: ToolRegistry
 
 Pre-registers all built-in tools: `ReadFileTool`, `WriteFileTool`, `EditFileTool`, `BashTool`, `WebSearchTool`, and 10 Git tools.
 
+`DefaultToolRegistry(allowedTools:)` registers only the named built-ins. `Runner`
+uses this initializer with `Agent.tools`; an empty agent list advertises and
+executes no tools.
+
 ### Built-in Tools
 
 | Tool | Name | Description |
@@ -325,6 +376,13 @@ public protocol LoopStrategy: Sendable {
 | `PlanAndExecuteStrategy` | `.planAndExecute` | Complex multi-step tasks |
 | `ParallelStrategy` | `.parallel` | Independent operations |
 | `ReflexionStrategy` | `.reflexion` | Quality-critical tasks |
+
+Each specialized strategy builds and executes its own prompt. Per-run
+`LoopOptions` override the strategy defaults for planning steps, parallel-call
+guidance, reflection rounds, and quality threshold. These values steer the
+model's prompt; the current executor still processes returned tool calls
+serially and does not provide deterministic SDK-side parallel scheduling or
+quality scoring.
 
 ### LoopStrategyRegistry
 

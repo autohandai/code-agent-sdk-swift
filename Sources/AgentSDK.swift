@@ -12,5 +12,6 @@
 // - LoopStrategy, ReActStrategy, PlanAndExecuteStrategy, ParallelStrategy, ReflexionStrategy
 // - HookManager, HookDefinition, HookContext
 // - PermissionManager, PermissionRequest, PermissionResult
+// - AutohandSDK, AutohandCLIClient, typed skills and MCP discovery
 // - AgentSDKError (structured error hierarchy)
 // - Core types: Message, Session, RunResult, StreamEvent, ToolCall, ToolName, etc.
