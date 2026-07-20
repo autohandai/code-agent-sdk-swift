@@ -412,6 +412,30 @@ import Testing
       #expect(parameters.isEmpty)
     }
 
+    @Test func autoModeCancellationUsesExactOptionalReasonAndDecodesResult() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: .init(
+        cwd: fixture.directory.path,
+        cliPath: fixture.executable.path,
+        timeout: 5,
+        environment: ["AUTOHAND_TEST_REQUEST_LOG": fixture.requestLog.path]
+      ))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.cancelAutoMode(.init(reason: "Operator requested stop"))
+      #expect(result.success)
+      #expect(result.error == nil)
+
+      let request = try #require(requestObjects(in: fixture.requestLog).first {
+        $0["method"] as? String == "autohand.automode.cancel"
+      })
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters.count == 1)
+      #expect(parameters["reason"] as? String == "Operator requested stop")
+    }
+
     @Test func startupInitializationFailureRollsBackAndCanRetry() throws {
       let fixture = try FakeCLIFixture()
       defer { fixture.remove() }
@@ -738,6 +762,8 @@ import Testing
           *autohand.automode.pause*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id" ;;
           *autohand.automode.resume*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id" ;;
+          *autohand.automode.cancel*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id" ;;
           *autohand.prompt*)
             (sleep "${AUTOHAND_PROMPT_DELAY:-0.2}"; printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id") & ;;

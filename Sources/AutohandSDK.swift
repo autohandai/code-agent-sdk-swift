@@ -91,4 +91,10 @@ public final class AutohandSDK: @unchecked Sendable {
   public func resumeAutoMode() async throws -> AutoModeOperationResult {
     try await client.resumeAutoMode()
   }
+
+  public func cancelAutoMode(
+    _ parameters: AutoModeCancelParameters = .init()
+  ) async throws -> AutoModeOperationResult {
+    try await client.cancelAutoMode(parameters)
+  }
 }

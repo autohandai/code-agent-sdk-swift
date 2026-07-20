@@ -183,3 +183,11 @@ public struct AutoModeOperationResult: Codable, Sendable, Equatable {
     self.error = error
   }
 }
+
+public struct AutoModeCancelParameters: Codable, Sendable, Equatable {
+  public let reason: String?
+
+  public init(reason: String? = nil) {
+    self.reason = reason
+  }
+}
