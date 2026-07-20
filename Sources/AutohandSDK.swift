@@ -79,4 +79,8 @@ public final class AutohandSDK: @unchecked Sendable {
   ) async throws -> AutoModeStartResult {
     try await client.startAutoMode(parameters)
   }
+
+  public func autoModeStatus() async throws -> AutoModeStatusResult {
+    try await client.autoModeStatus()
+  }
 }

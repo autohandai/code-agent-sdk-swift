@@ -119,6 +119,7 @@ Create an expiring browser attachment URL with `createBrowserHandoff(_:)`.
 Attach one by token with `attachBrowserHandoff(_:)`.
 Use `attachLatestBrowserHandoff()` to select the newest handoff automatically.
 Start a bounded autonomous run with typed limits through `startAutoMode(_:)`.
+Inspect progress and checkpoint metadata with `autoModeStatus()`.
 
 `AutohandSDK` is the macOS CLI-facing API. The cross-platform `Agent` and
 `Runner` remain direct-provider APIs and do not silently launch a subprocess.

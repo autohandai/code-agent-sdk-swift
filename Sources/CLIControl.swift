@@ -110,3 +110,66 @@ public struct AutoModeStartResult: Codable, Sendable, Equatable {
     self.error = error
   }
 }
+
+public enum AutoModeRunStatus: String, Codable, Sendable, CaseIterable {
+  case running
+  case paused
+  case completed
+  case cancelled
+  case failed
+}
+
+public struct AutoModeCheckpoint: Codable, Sendable, Equatable {
+  public let commit: String
+  public let message: String
+  public let timestamp: String
+
+  public init(commit: String, message: String, timestamp: String) {
+    self.commit = commit
+    self.message = message
+    self.timestamp = timestamp
+  }
+}
+
+public struct AutoModeState: Codable, Sendable, Equatable {
+  public let sessionId: String
+  public let status: AutoModeRunStatus
+  public let currentIteration: Int
+  public let maxIterations: Int
+  public let filesCreated: Int
+  public let filesModified: Int
+  public let branch: String?
+  public let lastCheckpoint: AutoModeCheckpoint?
+
+  public init(
+    sessionId: String,
+    status: AutoModeRunStatus,
+    currentIteration: Int,
+    maxIterations: Int,
+    filesCreated: Int,
+    filesModified: Int,
+    branch: String? = nil,
+    lastCheckpoint: AutoModeCheckpoint? = nil
+  ) {
+    self.sessionId = sessionId
+    self.status = status
+    self.currentIteration = currentIteration
+    self.maxIterations = maxIterations
+    self.filesCreated = filesCreated
+    self.filesModified = filesModified
+    self.branch = branch
+    self.lastCheckpoint = lastCheckpoint
+  }
+}
+
+public struct AutoModeStatusResult: Codable, Sendable, Equatable {
+  public let active: Bool
+  public let paused: Bool
+  public let state: AutoModeState?
+
+  public init(active: Bool, paused: Bool, state: AutoModeState? = nil) {
+    self.active = active
+    self.paused = paused
+    self.state = state
+  }
+}

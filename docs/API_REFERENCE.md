@@ -47,6 +47,7 @@ existing iOS and provider-backed integrations source-compatible.
 - `attachBrowserHandoff(_:)` attaches a browser handoff by token.
 - `attachLatestBrowserHandoff()` attaches the newest available browser handoff.
 - `startAutoMode(_:)` starts a bounded autonomous run with typed limits.
+- `autoModeStatus()` returns typed run state, file counts, branch, and checkpoint metadata.
 - `startAutoresearch(_:)`, `autoresearchStatus()`, `stopAutoresearch()`
 - `autoresearchHistory()`, `replayAutoresearch(_:)`, `rescoreAutoresearch(_:)`
 - `compareAutoresearch(_:)`, `autoresearchPareto()`, `pinAutoresearch(_:)`
