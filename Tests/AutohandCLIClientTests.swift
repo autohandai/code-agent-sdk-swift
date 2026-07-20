@@ -833,6 +833,8 @@ import Testing
             printf '{"jsonrpc":"2.0","method":"autohand.automode.error","params":{"sessionId":"auto-session","error":"iteration limit reached","timestamp":"2026-07-21T00:00:02Z"}}\n'
             printf '{"jsonrpc":"2.0","method":"autohand.hook.preTool","params":{"toolId":"malformed"}}\n'
             printf '{"jsonrpc":"2.0","method":"autohand.hook.preTool","params":{"toolId":"tool-1","toolName":"read_file","args":{"path":"README.md"},"timestamp":"2026-07-21T00:00:03Z"}}\n'
+            printf '{"jsonrpc":"2.0","method":"autohand.hook.postTool","params":{"toolId":"malformed"}}\n'
+            printf '{"jsonrpc":"2.0","method":"autohand.hook.postTool","params":{"toolId":"tool-1","toolName":"read_file","success":true,"duration":12.5,"output":"contents","timestamp":"2026-07-21T00:00:04Z"}}\n'
             (sleep "${AUTOHAND_PROMPT_DELAY:-0.2}"; printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id") & ;;
           *autohand.getSupportedCommands*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"commands":["help","deep-research","autoresearch"]}}\n' "$id" ;;

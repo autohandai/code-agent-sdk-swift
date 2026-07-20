@@ -521,3 +521,12 @@ public struct HookPreToolEvent: Codable, Sendable {
   public let args: [String: AnyCodable]
   public let timestamp: String
 }
+
+public struct HookPostToolEvent: Codable, Sendable, Equatable {
+  public let toolId: String
+  public let toolName: String
+  public let success: Bool
+  public let duration: Double
+  public let output: String?
+  public let timestamp: String
+}
