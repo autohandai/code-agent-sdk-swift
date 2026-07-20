@@ -792,6 +792,8 @@ import Testing
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true,"sessionId":"session-existing","workspaceRoot":"/workspace","messageCount":7}}\n' "$id" ;;
           *autohand.yoloSet*|*autohand.yolo.set*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true,"expiresIn":900}}\n' "$id" ;;
+          *autohand.mcp.setVscodeTools*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id" ;;
           *autohand.browserHandoff.create*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"token":"handoff-token","sessionId":"browser-session","workspaceRoot":"/workspace","createdAt":"2026-07-20T00:00:00Z","expiresAt":"2026-07-20T00:05:00Z","url":"https://example.test/handoff"}}\n' "$id" ;;
           *autohand.browserHandoff.attachLatest*)

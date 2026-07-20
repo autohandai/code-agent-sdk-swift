@@ -296,3 +296,53 @@ public struct YoloSetResult: Codable, Sendable, Equatable {
   public let success: Bool
   public let expiresIn: Int?
 }
+
+public enum MCPInputSchemaType: String, Codable, Sendable {
+  case object
+}
+
+public struct MCPInputSchema: Codable, Sendable {
+  public let type: MCPInputSchemaType
+  public let properties: [String: AnyCodable]
+  public let required: [String]?
+
+  public init(
+    properties: [String: AnyCodable],
+    required: [String]? = nil
+  ) {
+    type = .object
+    self.properties = properties
+    self.required = required
+  }
+}
+
+public struct VscodeMCPToolDescriptor: Codable, Sendable {
+  public let name: String
+  public let description: String
+  public let serverName: String
+  public let inputSchema: MCPInputSchema?
+
+  public init(
+    name: String,
+    description: String,
+    serverName: String,
+    inputSchema: MCPInputSchema? = nil
+  ) {
+    self.name = name
+    self.description = description
+    self.serverName = serverName
+    self.inputSchema = inputSchema
+  }
+}
+
+public struct MCPSetVscodeToolsParameters: Codable, Sendable {
+  public let tools: [VscodeMCPToolDescriptor]
+
+  public init(tools: [VscodeMCPToolDescriptor]) {
+    self.tools = tools
+  }
+}
+
+public struct MCPSetVscodeToolsResult: Codable, Sendable, Equatable {
+  public let success: Bool
+}

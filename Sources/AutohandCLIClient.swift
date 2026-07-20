@@ -599,6 +599,12 @@ public final class AutohandCLIClient: @unchecked Sendable {
     return try await request(method: method, parameters: parameters)
   }
 
+  public func registerVscodeMCPTools(
+    _ parameters: MCPSetVscodeToolsParameters
+  ) async throws -> MCPSetVscodeToolsResult {
+    try await request(method: "autohand.mcp.setVscodeTools", parameters: parameters)
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

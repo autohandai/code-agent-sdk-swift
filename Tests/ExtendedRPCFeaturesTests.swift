@@ -174,6 +174,36 @@ import Testing
       #expect(parameters["timeoutSeconds"] as? Int == 900)
     }
 
+    @Test func vscodeMCPToolRegistrationSerializesTypedDescriptors() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: configuration(for: fixture))
+      try sdk.start()
+      defer { sdk.close() }
+      let schema = MCPInputSchema(
+        properties: ["issue": AnyCodable(["type": "string"])],
+        required: ["issue"]
+      )
+
+      let result = try await sdk.registerVscodeMCPTools(.init(tools: [
+        .init(
+          name: "open_issue",
+          description: "Open an issue",
+          serverName: "vscode",
+          inputSchema: schema
+        )
+      ]))
+
+      #expect(result.success)
+      let request = try #require(requests(in: fixture).last)
+      #expect(request["method"] as? String == "autohand.mcp.setVscodeTools")
+      let parameters = try #require(request["params"] as? [String: Any])
+      let tools = try #require(parameters["tools"] as? [[String: Any]])
+      let inputSchema = try #require(tools.first?["inputSchema"] as? [String: Any])
+      #expect(inputSchema["type"] as? String == "object")
+      #expect(inputSchema["required"] as? [String] == ["issue"])
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,

@@ -107,6 +107,12 @@ public final class AutohandSDK: @unchecked Sendable {
     try await client.setYoloMode(parameters, useCompatibilityAlias: useCompatibilityAlias)
   }
 
+  public func registerVscodeMCPTools(
+    _ parameters: MCPSetVscodeToolsParameters
+  ) async throws -> MCPSetVscodeToolsResult {
+    try await client.registerVscodeMCPTools(parameters)
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {
