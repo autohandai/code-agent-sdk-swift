@@ -369,3 +369,38 @@ public struct MCPInvokeResponseParameters: Codable, Sendable, Equatable {
 public struct MCPInvokeResponseResult: Codable, Sendable, Equatable {
   public let success: Bool
 }
+
+public struct LearnRecommendParameters: Codable, Sendable, Equatable {
+  public let deep: Bool?
+
+  public init(deep: Bool? = nil) {
+    self.deep = deep
+  }
+}
+
+public enum LearnAuditStatus: String, Codable, Sendable, CaseIterable {
+  case redundant
+  case outdated
+  case conflicting
+}
+
+public struct LearnAuditEntry: Codable, Sendable, Equatable {
+  public let skill: String
+  public let status: LearnAuditStatus
+  public let reason: String
+}
+
+public struct LearnRecommendation: Codable, Sendable, Equatable {
+  public let slug: String
+  public let score: Double
+  public let reason: String
+}
+
+public struct LearnRecommendResult: Codable, Sendable, Equatable {
+  public let success: Bool
+  public let projectSummary: String
+  public let audit: [LearnAuditEntry]
+  public let recommendations: [LearnRecommendation]
+  public let gapAnalysis: String?
+  public let error: String?
+}

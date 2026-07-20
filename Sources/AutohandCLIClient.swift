@@ -611,6 +611,12 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(method: "autohand.mcp.invokeResponse", parameters: parameters)
   }
 
+  public func recommendProjectLearning(
+    _ parameters: LearnRecommendParameters = .init()
+  ) async throws -> LearnRecommendResult {
+    try await request(method: "autohand.learn.recommend", parameters: parameters)
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

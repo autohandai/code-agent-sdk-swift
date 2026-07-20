@@ -227,6 +227,25 @@ import Testing
       #expect(parameters["result"] == nil)
     }
 
+    @Test func projectLearningRecommendationsDecodeAuditAndRanking() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: configuration(for: fixture))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.recommendProjectLearning(.init(deep: true))
+
+      #expect(result.success)
+      #expect(result.audit.first?.status == .outdated)
+      #expect(result.recommendations.first?.score == 0.97)
+      #expect(result.gapAnalysis == "Deep contract gap")
+      let request = try #require(requests(in: fixture).last)
+      #expect(request["method"] as? String == "autohand.learn.recommend")
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters["deep"] as? Bool == true)
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,
