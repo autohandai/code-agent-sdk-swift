@@ -204,6 +204,29 @@ import Testing
       #expect(inputSchema["required"] as? [String] == ["issue"])
     }
 
+    @Test func mcpInvocationResponseUsesExactCompletionPayload() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: configuration(for: fixture))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.completeMCPInvocation(.init(
+        requestId: "invoke-1",
+        success: false,
+        error: "tool unavailable"
+      ))
+
+      #expect(result.success)
+      let request = try #require(requests(in: fixture).last)
+      #expect(request["method"] as? String == "autohand.mcp.invokeResponse")
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters["requestId"] as? String == "invoke-1")
+      #expect(parameters["success"] as? Bool == false)
+      #expect(parameters["error"] as? String == "tool unavailable")
+      #expect(parameters["result"] == nil)
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,

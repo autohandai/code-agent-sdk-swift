@@ -113,6 +113,12 @@ public final class AutohandSDK: @unchecked Sendable {
     try await client.registerVscodeMCPTools(parameters)
   }
 
+  public func completeMCPInvocation(
+    _ parameters: MCPInvokeResponseParameters
+  ) async throws -> MCPInvokeResponseResult {
+    try await client.completeMCPInvocation(parameters)
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

@@ -346,3 +346,26 @@ public struct MCPSetVscodeToolsParameters: Codable, Sendable {
 public struct MCPSetVscodeToolsResult: Codable, Sendable, Equatable {
   public let success: Bool
 }
+
+public struct MCPInvokeResponseParameters: Codable, Sendable, Equatable {
+  public let requestId: String
+  public let success: Bool
+  public let result: String?
+  public let error: String?
+
+  public init(
+    requestId: String,
+    success: Bool,
+    result: String? = nil,
+    error: String? = nil
+  ) {
+    self.requestId = requestId
+    self.success = success
+    self.result = result
+    self.error = error
+  }
+}
+
+public struct MCPInvokeResponseResult: Codable, Sendable, Equatable {
+  public let success: Bool
+}
