@@ -722,7 +722,7 @@ import Testing
     func append(_ event: AutohandCLIEvent) { lock.withLock { storage.append(event) } }
   }
 
-  private struct FakeCLIFixture {
+  struct FakeCLIFixture {
     let directory: URL
     let executable: URL
     let requestLog: URL
@@ -776,6 +776,8 @@ import Testing
             printf '{"jsonrpc":"2.0","id":%s,"result":{"configs":[{"name":"filesystem","transport":"stdio","command":"node","args":["server.js"],"env":{"MODE":"safe"},"autoConnect":true}]}}\n' "$id" ;;
           *autohand.reset*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"sessionId":"reset-session"}}\n' "$id" ;;
+          *autohand.permissionAcknowledged*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id" ;;
           *autohand.browserHandoff.create*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"token":"handoff-token","sessionId":"browser-session","workspaceRoot":"/workspace","createdAt":"2026-07-20T00:00:00Z","expiresAt":"2026-07-20T00:05:00Z","url":"https://example.test/handoff"}}\n' "$id" ;;
           *autohand.browserHandoff.attachLatest*)

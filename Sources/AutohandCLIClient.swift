@@ -549,6 +549,12 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(method: "autohand.reset", parameters: EmptyParameters())
   }
 
+  public func acknowledgePermission(
+    _ parameters: PermissionAcknowledgementParameters
+  ) async throws -> PermissionAcknowledgementResult {
+    try await request(method: "autohand.permissionAcknowledged", parameters: parameters)
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

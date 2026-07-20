@@ -58,6 +58,12 @@ public final class AutohandSDK: @unchecked Sendable {
     try await client.reset()
   }
 
+  public func acknowledgePermission(
+    _ parameters: PermissionAcknowledgementParameters
+  ) async throws -> PermissionAcknowledgementResult {
+    try await client.acknowledgePermission(parameters)
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {
