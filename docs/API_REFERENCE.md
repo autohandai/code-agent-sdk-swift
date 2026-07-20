@@ -46,6 +46,7 @@ existing iOS and provider-backed integrations source-compatible.
 - `createBrowserHandoff(_:)` creates an expiring browser attachment URL.
 - `attachBrowserHandoff(_:)` attaches a browser handoff by token.
 - `attachLatestBrowserHandoff()` attaches the newest available browser handoff.
+- `startAutoMode(_:)` starts a bounded autonomous run with typed limits.
 - `startAutoresearch(_:)`, `autoresearchStatus()`, `stopAutoresearch()`
 - `autoresearchHistory()`, `replayAutoresearch(_:)`, `rescoreAutoresearch(_:)`
 - `compareAutoresearch(_:)`, `autoresearchPareto()`, `pinAutoresearch(_:)`

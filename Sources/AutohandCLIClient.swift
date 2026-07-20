@@ -566,6 +566,12 @@ public final class AutohandCLIClient: @unchecked Sendable {
       method: "autohand.browserHandoff.attachLatest", parameters: EmptyParameters())
   }
 
+  public func startAutoMode(
+    _ parameters: AutoModeStartParameters
+  ) async throws -> AutoModeStartResult {
+    try await request(method: "autohand.automode.start", parameters: parameters)
+  }
+
   public func goal() async throws -> GoalSnapshotResult {
     try await request(method: "autohand.goal.get", parameters: EmptyParameters())
   }

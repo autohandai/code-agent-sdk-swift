@@ -70,3 +70,43 @@ public struct BrowserHandoffAttachResult: Codable, Sendable, Equatable {
     self.messageCount = messageCount
   }
 }
+
+public struct AutoModeStartParameters: Codable, Sendable, Equatable {
+  public let prompt: String
+  public let maxIterations: Int?
+  public let completionPromise: String?
+  public let useWorktree: Bool?
+  public let checkpointInterval: Int?
+  public let maxRuntime: Int?
+  public let maxCost: Double?
+
+  public init(
+    prompt: String,
+    maxIterations: Int? = nil,
+    completionPromise: String? = nil,
+    useWorktree: Bool? = nil,
+    checkpointInterval: Int? = nil,
+    maxRuntime: Int? = nil,
+    maxCost: Double? = nil
+  ) {
+    self.prompt = prompt
+    self.maxIterations = maxIterations
+    self.completionPromise = completionPromise
+    self.useWorktree = useWorktree
+    self.checkpointInterval = checkpointInterval
+    self.maxRuntime = maxRuntime
+    self.maxCost = maxCost
+  }
+}
+
+public struct AutoModeStartResult: Codable, Sendable, Equatable {
+  public let success: Bool
+  public let sessionId: String?
+  public let error: String?
+
+  public init(success: Bool, sessionId: String? = nil, error: String? = nil) {
+    self.success = success
+    self.sessionId = sessionId
+    self.error = error
+  }
+}

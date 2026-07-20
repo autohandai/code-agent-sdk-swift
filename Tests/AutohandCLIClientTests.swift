@@ -301,6 +301,45 @@ import Testing
       #expect(parameters.isEmpty)
     }
 
+    @Test func autoModeStartUsesExactCamelCaseParametersAndDecodesResult() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: .init(
+        cwd: fixture.directory.path,
+        cliPath: fixture.executable.path,
+        timeout: 5,
+        environment: ["AUTOHAND_TEST_REQUEST_LOG": fixture.requestLog.path]
+      ))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.startAutoMode(.init(
+        prompt: "Ship the SDK",
+        maxIterations: 8,
+        completionPromise: "DONE",
+        useWorktree: true,
+        checkpointInterval: 2,
+        maxRuntime: 600,
+        maxCost: 4.5
+      ))
+      #expect(result.success)
+      #expect(result.sessionId == "auto-session")
+
+      let request = try #require(requestObjects(in: fixture.requestLog).first {
+        $0["method"] as? String == "autohand.automode.start"
+      })
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters.count == 7)
+      #expect(parameters["prompt"] as? String == "Ship the SDK")
+      #expect(parameters["maxIterations"] as? Int == 8)
+      #expect(parameters["completionPromise"] as? String == "DONE")
+      #expect(parameters["useWorktree"] as? Bool == true)
+      #expect(parameters["checkpointInterval"] as? Int == 2)
+      #expect(parameters["maxRuntime"] as? Int == 600)
+      #expect(parameters["maxCost"] as? Double == 4.5)
+      #expect(parameters["max_iterations"] == nil)
+    }
+
     @Test func startupInitializationFailureRollsBackAndCanRetry() throws {
       let fixture = try FakeCLIFixture()
       defer { fixture.remove() }
@@ -620,6 +659,8 @@ import Testing
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true,"sessionId":"latest-session","workspaceRoot":"/workspace","messageCount":5}}\n' "$id" ;;
           *autohand.browserHandoff.attach*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true,"sessionId":"browser-session","workspaceRoot":"/workspace","messageCount":3}}\n' "$id" ;;
+          *autohand.automode.start*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true,"sessionId":"auto-session"}}\n' "$id" ;;
           *autohand.prompt*)
             (sleep "${AUTOHAND_PROMPT_DELAY:-0.2}"; printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id") & ;;
           *autohand.getSupportedCommands*)
