@@ -263,6 +263,24 @@ import Testing
       #expect((request["params"] as? [String: Any])?.isEmpty == true)
     }
 
+    @Test func skillGenerationUsesTypedScopeAndResult() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: configuration(for: fixture))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.generateProjectLearning(.init(scope: .project))
+
+      #expect(result.success)
+      #expect(result.skillName == "swift-sdk-learning")
+      let request = try #require(requests(in: fixture).last)
+      #expect(request["method"] as? String == "autohand.learn.generate")
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters.count == 1)
+      #expect(parameters["scope"] as? String == "project")
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,

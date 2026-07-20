@@ -423,3 +423,23 @@ public struct LearnUpdateResult: Codable, Sendable, Equatable {
   public let results: [LearnUpdateEntry]
   public let error: String?
 }
+
+public enum LearnGenerateScope: String, Codable, Sendable, CaseIterable {
+  case project
+  case user
+}
+
+public struct LearnGenerateParameters: Codable, Sendable, Equatable {
+  public let scope: LearnGenerateScope
+
+  public init(scope: LearnGenerateScope) {
+    self.scope = scope
+  }
+}
+
+public struct LearnGenerateResult: Codable, Sendable, Equatable {
+  public let success: Bool
+  public let skillName: String?
+  public let skillPath: String?
+  public let error: String?
+}
