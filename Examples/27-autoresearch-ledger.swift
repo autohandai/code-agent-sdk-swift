@@ -20,6 +20,8 @@ struct AutoresearchLedgerExample {
           print("[ledger:\(operation.phase)] \(operation.operation)")
         case .notification:
           break
+        default:
+          break
         }
       })
     try client.start()

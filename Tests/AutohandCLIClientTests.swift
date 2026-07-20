@@ -843,6 +843,9 @@ import Testing
             printf '{"jsonrpc":"2.0","method":"autohand.mcp.invokeRequest","params":{"requestId":"mcp-1","toolName":"vscode.openFile","args":{"path":"Sources/Agent.swift"},"timestamp":"2026-07-21T00:00:07Z"}}\n'
             printf '{"jsonrpc":"2.0","method":"autohand.mcp.toolsChanged","params":{"tools":[{}],"timestamp":"2026-07-21T00:00:08Z"}}\n'
             printf '{"jsonrpc":"2.0","method":"autohand.mcp.toolsChanged","params":{"tools":[{"name":"open_file","description":"Open a file","serverName":"vscode"}],"timestamp":"2026-07-21T00:00:08Z"}}\n'
+            printf '{"jsonrpc":"2.0","method":"autohand.learn.progress","params":{"status":"unknown","timestamp":"2026-07-21T00:00:09Z"}}\n'
+            printf '{"jsonrpc":"2.0","method":"autohand.learn.progress","params":{"status":"loading-registry","timestamp":"2026-07-21T00:00:09Z"}}\n'
+            printf '{"jsonrpc":"2.0","method":"autohand.future.event","params":{"value":"kept","timestamp":"2026-07-21T00:00:10Z"}}\n'
             (sleep "${AUTOHAND_PROMPT_DELAY:-0.2}"; printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id") & ;;
           *autohand.getSupportedCommands*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"commands":["help","deep-research","autoresearch"]}}\n' "$id" ;;

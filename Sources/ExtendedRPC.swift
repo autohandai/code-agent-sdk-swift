@@ -561,3 +561,16 @@ public struct MCPToolsChangedEvent: Codable, Sendable, Equatable {
   public let tools: [MCPToolSummary]
   public let timestamp: String
 }
+
+public enum LearnProgressStatus: String, Codable, Sendable, CaseIterable {
+  case analyzing
+  case loadingRegistry = "loading-registry"
+  case evaluating
+  case generating
+  case updating
+}
+
+public struct LearnProgressEvent: Codable, Sendable, Equatable {
+  public let status: LearnProgressStatus
+  public let timestamp: String
+}

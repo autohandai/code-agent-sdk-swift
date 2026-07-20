@@ -505,6 +505,37 @@ import Testing
       #expect(events.first?.tools.first?.serverName == "vscode")
     }
 
+    @Test func learningProgressRejectsMalformedAndPreservesUnknownFallback() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let recorder = FeatureEventRecorder()
+      let sdk = AutohandSDK(
+        configuration: configuration(for: fixture),
+        onEvent: { recorder.append($0) })
+      try sdk.start()
+      defer { sdk.close() }
+
+      _ = try await sdk.client.prompt("feature-events")
+
+      let progressEvents = recorder.events.compactMap { event -> LearnProgressEvent? in
+        if case .learnProgress(let value) = event { return value }
+        return nil
+      }
+      #expect(progressEvents.count == 1)
+      #expect(progressEvents.first?.status == .loadingRegistry)
+
+      let unknownEvents = recorder.events.compactMap { event -> [String: AnyCodable]? in
+        if case .notification(let method, let payload, _) = event,
+          method == "autohand.future.event"
+        {
+          return payload
+        }
+        return nil
+      }
+      #expect(unknownEvents.count == 1)
+      #expect(unknownEvents.first?["value"]?.value as? String == "kept")
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,
