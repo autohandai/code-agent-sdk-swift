@@ -3,7 +3,7 @@ import Testing
 
 @testable import AgentSDK
 
-@Suite struct AutohandCLIClientTests {
+@Suite(.serialized) struct AutohandCLIClientTests {
   @Test func currentCLIFlagsUseExactArgumentContract() {
     let configuration = AutohandCLIConfiguration(
       cwd: "/workspace",
