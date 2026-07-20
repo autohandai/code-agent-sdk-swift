@@ -492,3 +492,11 @@ public struct ContextCompactionParameters: Codable, Sendable, Equatable {
 public struct ContextCompactionResult: Codable, Sendable, Equatable {
   public let enabled: Bool
 }
+
+public struct AutoModeIterationEvent: Codable, Sendable, Equatable {
+  public let sessionId: String
+  public let iteration: Int
+  public let actions: [String]
+  public let tokensUsed: Int?
+  public let timestamp: String
+}

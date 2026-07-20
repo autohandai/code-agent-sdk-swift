@@ -438,6 +438,7 @@ public enum AutohandCLIEvent: Sendable {
   case turnEnd(AutohandTurnEndEvent)
   case autoresearchLifecycle(AutoresearchLifecycleEvent)
   case autoresearchOperation(AutoresearchOperationEvent)
+  case autoModeIteration(AutoModeIterationEvent)
   case notification(method: String, payload: [String: AnyCodable], timestamp: String?)
 }
 

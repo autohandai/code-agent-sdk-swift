@@ -315,6 +315,27 @@ import Testing
       #expect(parameters["enabled"] as? Bool == true)
     }
 
+    @Test func autoModeIterationRejectsMalformedAndDeliversTypedEvent() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let recorder = FeatureEventRecorder()
+      let sdk = AutohandSDK(
+        configuration: configuration(for: fixture),
+        onEvent: { recorder.append($0) })
+      try sdk.start()
+      defer { sdk.close() }
+
+      _ = try await sdk.client.prompt("feature-events")
+
+      let events = recorder.events.compactMap { event -> AutoModeIterationEvent? in
+        if case .autoModeIteration(let value) = event { return value }
+        return nil
+      }
+      #expect(events.count == 1)
+      #expect(events.first?.actions == ["edit", "test"])
+      #expect(events.first?.tokensUsed == 1_200)
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,
@@ -330,5 +351,15 @@ import Testing
         try #require(JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])
       }
     }
+  }
+#endif
+
+#if os(macOS)
+  private final class FeatureEventRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [AutohandCLIEvent] = []
+
+    var events: [AutohandCLIEvent] { lock.withLock { storage } }
+    func append(_ event: AutohandCLIEvent) { lock.withLock { storage.append(event) } }
   }
 #endif

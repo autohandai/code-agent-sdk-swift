@@ -825,6 +825,8 @@ import Testing
           *autohand.automode.getLog*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true,"iterations":[{"iteration":2,"timestamp":"2026-07-20T00:02:00Z","actions":["edit","test"],"tokensUsed":1200,"cost":0.08,"checkpoint":{"commit":"checkpoint-1","message":"iteration 2"}}]}}\n' "$id" ;;
           *autohand.prompt*)
+            printf '{"jsonrpc":"2.0","method":"autohand.automode.iteration","params":{"sessionId":"malformed"}}\n'
+            printf '{"jsonrpc":"2.0","method":"autohand.automode.iteration","params":{"sessionId":"auto-session","iteration":3,"actions":["edit","test"],"tokensUsed":1200,"timestamp":"2026-07-21T00:00:00Z"}}\n'
             (sleep "${AUTOHAND_PROMPT_DELAY:-0.2}"; printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id") & ;;
           *autohand.getSupportedCommands*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"commands":["help","deep-research","autoresearch"]}}\n' "$id" ;;

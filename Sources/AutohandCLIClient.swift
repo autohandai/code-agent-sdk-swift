@@ -913,6 +913,11 @@ public final class AutohandCLIClient: @unchecked Sendable {
         return
       }
       eventHandler(.autoresearchOperation(event))
+    case "autohand.automode.iteration":
+      guard let event = try? JSONDecoder().decode(AutoModeIterationEvent.self, from: data) else {
+        return
+      }
+      eventHandler(.autoModeIteration(event))
     default:
       let payload = (try? JSONDecoder().decode([String: AnyCodable].self, from: data)) ?? [:]
       eventHandler(
