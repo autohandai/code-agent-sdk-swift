@@ -443,6 +443,7 @@ public enum AutohandCLIEvent: Sendable {
   case autoModeError(AutoModeErrorEvent)
   case hookPreTool(HookPreToolEvent)
   case hookPostTool(HookPostToolEvent)
+  case hookPrePrompt(HookPrePromptEvent)
   case notification(method: String, payload: [String: AnyCodable], timestamp: String?)
 }
 

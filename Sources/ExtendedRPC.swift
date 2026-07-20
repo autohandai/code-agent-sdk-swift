@@ -530,3 +530,9 @@ public struct HookPostToolEvent: Codable, Sendable, Equatable {
   public let output: String?
   public let timestamp: String
 }
+
+public struct HookPrePromptEvent: Codable, Sendable, Equatable {
+  public let instruction: String
+  public let mentionedFiles: [String]
+  public let timestamp: String
+}
