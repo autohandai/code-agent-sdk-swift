@@ -246,6 +246,23 @@ import Testing
       #expect(parameters["deep"] as? Bool == true)
     }
 
+    @Test func projectLearningUpdatesDecodeTypedResultsAndEmptyParameters() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: configuration(for: fixture))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.updateProjectLearning()
+
+      #expect(result.success)
+      #expect(result.updated == 1)
+      #expect(result.results.first?.status == .updated)
+      let request = try #require(requests(in: fixture).last)
+      #expect(request["method"] as? String == "autohand.learn.update")
+      #expect((request["params"] as? [String: Any])?.isEmpty == true)
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,

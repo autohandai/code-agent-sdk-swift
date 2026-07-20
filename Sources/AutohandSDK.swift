@@ -125,6 +125,10 @@ public final class AutohandSDK: @unchecked Sendable {
     try await client.recommendProjectLearning(parameters)
   }
 
+  public func updateProjectLearning() async throws -> LearnUpdateResult {
+    try await client.updateProjectLearning()
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

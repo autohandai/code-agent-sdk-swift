@@ -617,6 +617,10 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(method: "autohand.learn.recommend", parameters: parameters)
   }
 
+  public func updateProjectLearning() async throws -> LearnUpdateResult {
+    try await request(method: "autohand.learn.update", parameters: EmptyParameters())
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

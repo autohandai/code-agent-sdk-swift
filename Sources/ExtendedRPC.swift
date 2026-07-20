@@ -404,3 +404,22 @@ public struct LearnRecommendResult: Codable, Sendable, Equatable {
   public let gapAnalysis: String?
   public let error: String?
 }
+
+public enum LearnUpdateStatus: String, Codable, Sendable, CaseIterable {
+  case updated
+  case unchanged
+  case failed
+}
+
+public struct LearnUpdateEntry: Codable, Sendable, Equatable {
+  public let name: String
+  public let status: LearnUpdateStatus
+}
+
+public struct LearnUpdateResult: Codable, Sendable, Equatable {
+  public let success: Bool
+  public let updated: Int
+  public let unchanged: Int
+  public let results: [LearnUpdateEntry]
+  public let error: String?
+}
