@@ -590,6 +590,12 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(method: "autohand.automode.cancel", parameters: parameters)
   }
 
+  public func autoModeLog(
+    _ parameters: AutoModeLogParameters = .init()
+  ) async throws -> AutoModeLogResult {
+    try await request(method: "autohand.automode.getLog", parameters: parameters)
+  }
+
   public func goal() async throws -> GoalSnapshotResult {
     try await request(method: "autohand.goal.get", parameters: EmptyParameters())
   }

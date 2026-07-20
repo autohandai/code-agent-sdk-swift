@@ -436,6 +436,33 @@ import Testing
       #expect(parameters["reason"] as? String == "Operator requested stop")
     }
 
+    @Test func autoModeIterationLogUsesExactLimitAndDecodesEntries() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: .init(
+        cwd: fixture.directory.path,
+        cliPath: fixture.executable.path,
+        timeout: 5,
+        environment: ["AUTOHAND_TEST_REQUEST_LOG": fixture.requestLog.path]
+      ))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.autoModeLog(.init(limit: 25))
+      #expect(result.success)
+      #expect(result.iterations.count == 1)
+      #expect(result.iterations[0].actions == ["edit", "test"])
+      #expect(result.iterations[0].tokensUsed == 1_200)
+      #expect(result.iterations[0].checkpoint?.commit == "checkpoint-1")
+
+      let request = try #require(requestObjects(in: fixture.requestLog).first {
+        $0["method"] as? String == "autohand.automode.getLog"
+      })
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters.count == 1)
+      #expect(parameters["limit"] as? Int == 25)
+    }
+
     @Test func startupInitializationFailureRollsBackAndCanRetry() throws {
       let fixture = try FakeCLIFixture()
       defer { fixture.remove() }
@@ -765,6 +792,8 @@ import Testing
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id" ;;
           *autohand.automode.cancel*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id" ;;
+          *autohand.automode.getLog*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true,"iterations":[{"iteration":2,"timestamp":"2026-07-20T00:02:00Z","actions":["edit","test"],"tokensUsed":1200,"cost":0.08,"checkpoint":{"commit":"checkpoint-1","message":"iteration 2"}}]}}\n' "$id" ;;
           *autohand.prompt*)
             (sleep "${AUTOHAND_PROMPT_DELAY:-0.2}"; printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id") & ;;
           *autohand.getSupportedCommands*)

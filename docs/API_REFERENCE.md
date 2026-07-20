@@ -51,6 +51,7 @@ existing iOS and provider-backed integrations source-compatible.
 - `pauseAutoMode()` pauses the active autonomous run.
 - `resumeAutoMode()` resumes the paused autonomous run.
 - `cancelAutoMode(_:)` cancels a run with an optional reason.
+- `autoModeLog(_:)` returns typed iteration actions, usage, cost, and checkpoints.
 - `startAutoresearch(_:)`, `autoresearchStatus()`, `stopAutoresearch()`
 - `autoresearchHistory()`, `replayAutoresearch(_:)`, `rescoreAutoresearch(_:)`
 - `compareAutoresearch(_:)`, `autoresearchPareto()`, `pinAutoresearch(_:)`

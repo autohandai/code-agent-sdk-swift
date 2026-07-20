@@ -191,3 +191,62 @@ public struct AutoModeCancelParameters: Codable, Sendable, Equatable {
     self.reason = reason
   }
 }
+
+public struct AutoModeLogParameters: Codable, Sendable, Equatable {
+  public let limit: Int?
+
+  public init(limit: Int? = nil) {
+    self.limit = limit
+  }
+}
+
+public struct AutoModeLogCheckpoint: Codable, Sendable, Equatable {
+  public let commit: String
+  public let message: String
+
+  public init(commit: String, message: String) {
+    self.commit = commit
+    self.message = message
+  }
+}
+
+public struct AutoModeIteration: Codable, Sendable, Equatable {
+  public let iteration: Int
+  public let timestamp: String
+  public let actions: [String]
+  public let tokensUsed: Int?
+  public let cost: Double?
+  public let checkpoint: AutoModeLogCheckpoint?
+
+  public init(
+    iteration: Int,
+    timestamp: String,
+    actions: [String],
+    tokensUsed: Int? = nil,
+    cost: Double? = nil,
+    checkpoint: AutoModeLogCheckpoint? = nil
+  ) {
+    self.iteration = iteration
+    self.timestamp = timestamp
+    self.actions = actions
+    self.tokensUsed = tokensUsed
+    self.cost = cost
+    self.checkpoint = checkpoint
+  }
+}
+
+public struct AutoModeLogResult: Codable, Sendable, Equatable {
+  public let success: Bool
+  public let iterations: [AutoModeIteration]
+  public let error: String?
+
+  public init(
+    success: Bool,
+    iterations: [AutoModeIteration],
+    error: String? = nil
+  ) {
+    self.success = success
+    self.iterations = iterations
+    self.error = error
+  }
+}
