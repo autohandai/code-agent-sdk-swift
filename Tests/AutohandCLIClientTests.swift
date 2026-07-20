@@ -366,6 +366,29 @@ import Testing
       #expect(parameters.isEmpty)
     }
 
+    @Test func autoModePauseUsesExactEmptyParametersAndDecodesResult() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: .init(
+        cwd: fixture.directory.path,
+        cliPath: fixture.executable.path,
+        timeout: 5,
+        environment: ["AUTOHAND_TEST_REQUEST_LOG": fixture.requestLog.path]
+      ))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.pauseAutoMode()
+      #expect(result.success)
+      #expect(result.error == nil)
+
+      let request = try #require(requestObjects(in: fixture.requestLog).first {
+        $0["method"] as? String == "autohand.automode.pause"
+      })
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters.isEmpty)
+    }
+
     @Test func startupInitializationFailureRollsBackAndCanRetry() throws {
       let fixture = try FakeCLIFixture()
       defer { fixture.remove() }
@@ -689,6 +712,8 @@ import Testing
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true,"sessionId":"auto-session"}}\n' "$id" ;;
           *autohand.automode.status*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"active":true,"paused":false,"state":{"sessionId":"auto-session","status":"running","currentIteration":2,"maxIterations":8,"filesCreated":1,"filesModified":3,"branch":"autohand/auto-session","lastCheckpoint":{"commit":"checkpoint-1","message":"iteration 2","timestamp":"2026-07-20T00:02:00Z"}}}}\n' "$id" ;;
+          *autohand.automode.pause*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id" ;;
           *autohand.prompt*)
             (sleep "${AUTOHAND_PROMPT_DELAY:-0.2}"; printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id") & ;;
           *autohand.getSupportedCommands*)

@@ -173,3 +173,13 @@ public struct AutoModeStatusResult: Codable, Sendable, Equatable {
     self.state = state
   }
 }
+
+public struct AutoModeOperationResult: Codable, Sendable, Equatable {
+  public let success: Bool
+  public let error: String?
+
+  public init(success: Bool, error: String? = nil) {
+    self.success = success
+    self.error = error
+  }
+}

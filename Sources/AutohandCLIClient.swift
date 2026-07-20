@@ -576,6 +576,10 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(method: "autohand.automode.status", parameters: EmptyParameters())
   }
 
+  public func pauseAutoMode() async throws -> AutoModeOperationResult {
+    try await request(method: "autohand.automode.pause", parameters: EmptyParameters())
+  }
+
   public func goal() async throws -> GoalSnapshotResult {
     try await request(method: "autohand.goal.get", parameters: EmptyParameters())
   }
