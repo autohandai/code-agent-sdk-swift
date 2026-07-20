@@ -57,4 +57,10 @@ public final class AutohandSDK: @unchecked Sendable {
   public func reset() async throws -> ConversationResetResult {
     try await client.reset()
   }
+
+  public func createBrowserHandoff(
+    _ parameters: BrowserHandoffCreateParameters = .init()
+  ) async throws -> BrowserHandoffCreateResult {
+    try await client.createBrowserHandoff(parameters)
+  }
 }

@@ -115,6 +115,7 @@ Installing a skill changes user or project state; discovery calls are read-only.
 
 Use `reset()` on `AutohandCLIClient` or `AutohandSDK` to replace the active
 conversation and receive its new session ID.
+Create an expiring browser attachment URL with `createBrowserHandoff(_:)`.
 
 `AutohandSDK` is the macOS CLI-facing API. The cross-platform `Agent` and
 `Runner` remain direct-provider APIs and do not silently launch a subprocess.

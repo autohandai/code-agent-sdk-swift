@@ -549,6 +549,12 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(method: "autohand.reset", parameters: EmptyParameters())
   }
 
+  public func createBrowserHandoff(
+    _ parameters: BrowserHandoffCreateParameters = .init()
+  ) async throws -> BrowserHandoffCreateResult {
+    try await request(method: "autohand.browserHandoff.create", parameters: parameters)
+  }
+
   public func goal() async throws -> GoalSnapshotResult {
     try await request(method: "autohand.goal.get", parameters: EmptyParameters())
   }

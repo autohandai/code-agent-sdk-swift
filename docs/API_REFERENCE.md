@@ -43,6 +43,7 @@ existing iOS and provider-backed integrations source-compatible.
 - `getSkillsRegistry(_:)`, `installSkill(_:)`
 - `listMCPServers()`, `listMCPTools(_:)`, `getMCPServerConfigs()`
 - `reset()` returns the new CLI conversation session ID.
+- `createBrowserHandoff(_:)` creates an expiring browser attachment URL.
 - `startAutoresearch(_:)`, `autoresearchStatus()`, `stopAutoresearch()`
 - `autoresearchHistory()`, `replayAutoresearch(_:)`, `rescoreAutoresearch(_:)`
 - `compareAutoresearch(_:)`, `autoresearchPareto()`, `pinAutoresearch(_:)`
