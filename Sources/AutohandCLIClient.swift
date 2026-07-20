@@ -573,6 +573,12 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(method: "autohand.changesDecision", parameters: parameters)
   }
 
+  public func sessionHistory(
+    _ parameters: SessionHistoryParameters = .init()
+  ) async throws -> SessionHistoryResult {
+    try await request(method: "autohand.getHistory", parameters: parameters)
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

@@ -784,6 +784,8 @@ import Testing
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id" ;;
           *autohand.changesDecision*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true,"appliedCount":2,"skippedCount":1,"errors":[{"changeId":"change-3","error":"conflict"}]}}\n' "$id" ;;
+          *autohand.getHistory*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"sessions":[{"sessionId":"session-42","createdAt":"2026-07-20T00:00:00Z","lastActiveAt":"2026-07-21T00:00:00Z","projectName":"AgentSDK","model":"test-model","messageCount":12,"status":"completed"}],"currentPage":2,"totalPages":3,"totalItems":25}}\n' "$id" ;;
           *autohand.browserHandoff.create*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"token":"handoff-token","sessionId":"browser-session","workspaceRoot":"/workspace","createdAt":"2026-07-20T00:00:00Z","expiresAt":"2026-07-20T00:05:00Z","url":"https://example.test/handoff"}}\n' "$id" ;;
           *autohand.browserHandoff.attachLatest*)

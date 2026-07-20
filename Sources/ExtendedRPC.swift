@@ -83,3 +83,36 @@ public struct ChangesDecisionResult: Codable, Sendable, Equatable {
   public let skippedCount: Int
   public let errors: [ChangesDecisionError]?
 }
+
+public struct SessionHistoryParameters: Codable, Sendable, Equatable {
+  public let page: Int?
+  public let pageSize: Int?
+
+  public init(page: Int? = nil, pageSize: Int? = nil) {
+    self.page = page
+    self.pageSize = pageSize
+  }
+}
+
+public enum SessionHistoryStatus: String, Codable, Sendable, CaseIterable {
+  case active
+  case completed
+  case crashed
+}
+
+public struct SessionHistoryEntry: Codable, Sendable, Equatable {
+  public let sessionId: String
+  public let createdAt: String
+  public let lastActiveAt: String
+  public let projectName: String
+  public let model: String
+  public let messageCount: Int
+  public let status: SessionHistoryStatus
+}
+
+public struct SessionHistoryResult: Codable, Sendable, Equatable {
+  public let sessions: [SessionHistoryEntry]
+  public let currentPage: Int
+  public let totalPages: Int
+  public let totalItems: Int
+}

@@ -81,6 +81,25 @@ import Testing
       #expect(parameters["selectedChangeIds"] as? [String] == ["change-1", "change-2"])
     }
 
+    @Test func sessionHistoryDecodesPaginationAndTypedEntries() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: configuration(for: fixture))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.sessionHistory(.init(page: 2, pageSize: 10))
+
+      #expect(result.currentPage == 2)
+      #expect(result.totalItems == 25)
+      #expect(result.sessions.first?.status == .completed)
+      let request = try #require(requests(in: fixture).last)
+      #expect(request["method"] as? String == "autohand.getHistory")
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters["page"] as? Int == 2)
+      #expect(parameters["pageSize"] as? Int == 10)
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,
