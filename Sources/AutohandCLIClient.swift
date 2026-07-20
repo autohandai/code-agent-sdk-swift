@@ -545,6 +545,10 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(method: "autohand.mcp.getServerConfigs", parameters: EmptyParameters())
   }
 
+  public func reset() async throws -> ConversationResetResult {
+    try await request(method: "autohand.reset", parameters: EmptyParameters())
+  }
+
   public func goal() async throws -> GoalSnapshotResult {
     try await request(method: "autohand.goal.get", parameters: EmptyParameters())
   }

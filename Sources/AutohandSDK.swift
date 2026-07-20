@@ -53,4 +53,8 @@ public final class AutohandSDK: @unchecked Sendable {
   public func getMCPServerConfigs() async throws -> MCPGetServerConfigsResult {
     try await client.getMCPServerConfigs()
   }
+
+  public func reset() async throws -> ConversationResetResult {
+    try await client.reset()
+  }
 }

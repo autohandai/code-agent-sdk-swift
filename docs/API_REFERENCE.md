@@ -42,6 +42,7 @@ existing iOS and provider-backed integrations source-compatible.
 - `applyFeatureSettings(_:)`
 - `getSkillsRegistry(_:)`, `installSkill(_:)`
 - `listMCPServers()`, `listMCPTools(_:)`, `getMCPServerConfigs()`
+- `reset()` returns the new CLI conversation session ID.
 - `startAutoresearch(_:)`, `autoresearchStatus()`, `stopAutoresearch()`
 - `autoresearchHistory()`, `replayAutoresearch(_:)`, `rescoreAutoresearch(_:)`
 - `compareAutoresearch(_:)`, `autoresearchPareto()`, `pinAutoresearch(_:)`

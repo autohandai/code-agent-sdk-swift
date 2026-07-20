@@ -199,6 +199,28 @@ import Testing
       #expect(byMethod["autohand.mcp.getServerConfigs"] != nil)
     }
 
+    @Test func resetUsesExactEmptyParametersAndDecodesSession() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: .init(
+        cwd: fixture.directory.path,
+        cliPath: fixture.executable.path,
+        timeout: 5,
+        environment: ["AUTOHAND_TEST_REQUEST_LOG": fixture.requestLog.path]
+      ))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.reset()
+      #expect(result.sessionId == "reset-session")
+
+      let request = try #require(requestObjects(in: fixture.requestLog).first {
+        $0["method"] as? String == "autohand.reset"
+      })
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters.isEmpty)
+    }
+
     @Test func startupInitializationFailureRollsBackAndCanRetry() throws {
       let fixture = try FakeCLIFixture()
       defer { fixture.remove() }
@@ -510,6 +532,8 @@ import Testing
             printf '{"jsonrpc":"2.0","id":%s,"result":{"tools":[{"name":"read_file","description":"Read a file","serverName":"filesystem"}]}}\n' "$id" ;;
           *autohand.mcp.getServerConfigs*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"configs":[{"name":"filesystem","transport":"stdio","command":"node","args":["server.js"],"env":{"MODE":"safe"},"autoConnect":true}]}}\n' "$id" ;;
+          *autohand.reset*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"sessionId":"reset-session"}}\n' "$id" ;;
           *autohand.prompt*)
             (sleep "${AUTOHAND_PROMPT_DELAY:-0.2}"; printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id") & ;;
           *autohand.getSupportedCommands*)
