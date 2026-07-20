@@ -281,3 +281,18 @@ public struct SessionAttachResult: Codable, Sendable, Equatable {
   public let messageCount: Int?
   public let error: String?
 }
+
+public struct YoloSetParameters: Codable, Sendable, Equatable {
+  public let pattern: String
+  public let timeoutSeconds: Int?
+
+  public init(pattern: String, timeoutSeconds: Int? = nil) {
+    self.pattern = pattern
+    self.timeoutSeconds = timeoutSeconds
+  }
+}
+
+public struct YoloSetResult: Codable, Sendable, Equatable {
+  public let success: Bool
+  public let expiresIn: Int?
+}

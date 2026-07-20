@@ -591,6 +591,14 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(method: "autohand.session.attach", parameters: parameters)
   }
 
+  public func setYoloMode(
+    _ parameters: YoloSetParameters,
+    useCompatibilityAlias: Bool = false
+  ) async throws -> YoloSetResult {
+    let method = useCompatibilityAlias ? "autohand.yolo.set" : "autohand.yoloSet"
+    return try await request(method: method, parameters: parameters)
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

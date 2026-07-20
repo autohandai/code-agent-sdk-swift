@@ -150,6 +150,30 @@ import Testing
       #expect(parameters["sessionId"] as? String == "session-existing")
     }
 
+    @Test func timedYoloModeSupportsCanonicalAndCompatibilityWireNames() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: configuration(for: fixture))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let canonical = try await sdk.setYoloMode(.init(pattern: "*", timeoutSeconds: 900))
+      let compatibility = try await sdk.setYoloMode(
+        .init(pattern: "workspace/**", timeoutSeconds: 60),
+        useCompatibilityAlias: true
+      )
+
+      #expect(canonical.success)
+      #expect(canonical.expiresIn == 900)
+      #expect(compatibility.success)
+      let requests = try requests(in: fixture)
+      #expect(requests[requests.count - 2]["method"] as? String == "autohand.yoloSet")
+      #expect(requests.last?["method"] as? String == "autohand.yolo.set")
+      let parameters = try #require(requests[requests.count - 2]["params"] as? [String: Any])
+      #expect(parameters["pattern"] as? String == "*")
+      #expect(parameters["timeoutSeconds"] as? Int == 900)
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,
