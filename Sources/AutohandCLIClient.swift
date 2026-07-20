@@ -555,6 +555,12 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(method: "autohand.browserHandoff.create", parameters: parameters)
   }
 
+  public func attachBrowserHandoff(
+    _ parameters: BrowserHandoffAttachParameters
+  ) async throws -> BrowserHandoffAttachResult {
+    try await request(method: "autohand.browserHandoff.attach", parameters: parameters)
+  }
+
   public func goal() async throws -> GoalSnapshotResult {
     try await request(method: "autohand.goal.get", parameters: EmptyParameters())
   }

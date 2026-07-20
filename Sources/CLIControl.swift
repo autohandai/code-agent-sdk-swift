@@ -43,3 +43,30 @@ public struct BrowserHandoffCreateResult: Codable, Sendable, Equatable {
     self.url = url
   }
 }
+
+public struct BrowserHandoffAttachParameters: Codable, Sendable, Equatable {
+  public let token: String
+
+  public init(token: String) {
+    self.token = token
+  }
+}
+
+public struct BrowserHandoffAttachResult: Codable, Sendable, Equatable {
+  public let success: Bool
+  public let sessionId: String?
+  public let workspaceRoot: String?
+  public let messageCount: Int?
+
+  public init(
+    success: Bool,
+    sessionId: String? = nil,
+    workspaceRoot: String? = nil,
+    messageCount: Int? = nil
+  ) {
+    self.success = success
+    self.sessionId = sessionId
+    self.workspaceRoot = workspaceRoot
+    self.messageCount = messageCount
+  }
+}

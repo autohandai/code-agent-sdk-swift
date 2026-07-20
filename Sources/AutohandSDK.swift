@@ -63,4 +63,10 @@ public final class AutohandSDK: @unchecked Sendable {
   ) async throws -> BrowserHandoffCreateResult {
     try await client.createBrowserHandoff(parameters)
   }
+
+  public func attachBrowserHandoff(
+    _ parameters: BrowserHandoffAttachParameters
+  ) async throws -> BrowserHandoffAttachResult {
+    try await client.attachBrowserHandoff(parameters)
+  }
 }

@@ -44,6 +44,7 @@ existing iOS and provider-backed integrations source-compatible.
 - `listMCPServers()`, `listMCPTools(_:)`, `getMCPServerConfigs()`
 - `reset()` returns the new CLI conversation session ID.
 - `createBrowserHandoff(_:)` creates an expiring browser attachment URL.
+- `attachBrowserHandoff(_:)` attaches a browser handoff by token.
 - `startAutoresearch(_:)`, `autoresearchStatus()`, `stopAutoresearch()`
 - `autoresearchHistory()`, `replayAutoresearch(_:)`, `rescoreAutoresearch(_:)`
 - `compareAutoresearch(_:)`, `autoresearchPareto()`, `pinAutoresearch(_:)`
