@@ -918,6 +918,11 @@ public final class AutohandCLIClient: @unchecked Sendable {
         return
       }
       eventHandler(.autoModeIteration(event))
+    case "autohand.automode.complete":
+      guard let event = try? JSONDecoder().decode(AutoModeCompleteEvent.self, from: data) else {
+        return
+      }
+      eventHandler(.autoModeComplete(event))
     default:
       let payload = (try? JSONDecoder().decode([String: AnyCodable].self, from: data)) ?? [:]
       eventHandler(

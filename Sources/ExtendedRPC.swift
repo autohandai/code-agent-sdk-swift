@@ -500,3 +500,11 @@ public struct AutoModeIterationEvent: Codable, Sendable, Equatable {
   public let tokensUsed: Int?
   public let timestamp: String
 }
+
+public struct AutoModeCompleteEvent: Codable, Sendable, Equatable {
+  public let sessionId: String
+  public let iterations: Int
+  public let filesCreated: Int
+  public let filesModified: Int
+  public let timestamp: String
+}
