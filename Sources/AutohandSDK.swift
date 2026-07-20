@@ -76,6 +76,12 @@ public final class AutohandSDK: @unchecked Sendable {
     try await client.acknowledgeDirectoryAccess(parameters)
   }
 
+  public func decideChanges(
+    _ parameters: ChangesDecisionParameters
+  ) async throws -> ChangesDecisionResult {
+    try await client.decideChanges(parameters)
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

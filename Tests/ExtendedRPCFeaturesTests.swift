@@ -57,6 +57,30 @@ import Testing
       #expect(parameters["requestId"] as? String == "directory-2")
     }
 
+    @Test func multiFileChangeDecisionDecodesNestedResultAndWireContract() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: configuration(for: fixture))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.decideChanges(.init(
+        batchId: "batch-1",
+        action: .acceptSelected,
+        selectedChangeIds: ["change-1", "change-2"]
+      ))
+
+      #expect(result.success)
+      #expect(result.appliedCount == 2)
+      #expect(result.errors?.first?.changeId == "change-3")
+      let request = try #require(requests(in: fixture).last)
+      #expect(request["method"] as? String == "autohand.changesDecision")
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters["batchId"] as? String == "batch-1")
+      #expect(parameters["action"] as? String == "accept_selected")
+      #expect(parameters["selectedChangeIds"] as? [String] == ["change-1", "change-2"])
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,
