@@ -281,6 +281,23 @@ import Testing
       #expect(parameters["scope"] as? String == "project")
     }
 
+    @Test func toolsRegistryDecodesTypedEntriesAndDiagnostics() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: configuration(for: fixture))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.toolsRegistry()
+
+      #expect(result.tools.first?.source == .builtin)
+      #expect(result.tools.first?.scope == .project)
+      #expect(result.diagnostics.first?.reason == "Invalid schema")
+      let request = try #require(requests(in: fixture).last)
+      #expect(request["method"] as? String == "autohand.getToolsRegistry")
+      #expect((request["params"] as? [String: Any])?.isEmpty == true)
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,

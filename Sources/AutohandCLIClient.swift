@@ -627,6 +627,10 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(method: "autohand.learn.generate", parameters: parameters)
   }
 
+  public func toolsRegistry() async throws -> ToolsRegistryResult {
+    try await request(method: "autohand.getToolsRegistry", parameters: EmptyParameters())
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

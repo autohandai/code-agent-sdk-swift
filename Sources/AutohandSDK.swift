@@ -135,6 +135,10 @@ public final class AutohandSDK: @unchecked Sendable {
     try await client.generateProjectLearning(parameters)
   }
 
+  public func toolsRegistry() async throws -> ToolsRegistryResult {
+    try await client.toolsRegistry()
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

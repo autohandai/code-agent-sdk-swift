@@ -443,3 +443,40 @@ public struct LearnGenerateResult: Codable, Sendable, Equatable {
   public let skillPath: String?
   public let error: String?
 }
+
+public enum ToolRegistrySource: String, Codable, Sendable, CaseIterable {
+  case builtin
+  case meta
+  case `extension`
+}
+
+public enum ToolRegistryScope: String, Codable, Sendable, CaseIterable {
+  case user
+  case project
+}
+
+public struct ToolRegistryEntry: Codable, Sendable, Equatable {
+  public let name: String
+  public let description: String
+  public let requiresApproval: Bool?
+  public let approvalMessage: String?
+  public let source: ToolRegistrySource
+  public let scope: ToolRegistryScope?
+  public let disabled: Bool?
+  public let createdAt: String?
+  public let schemaVersion: Int?
+  public let handlerPreview: String?
+  public let reuseHint: String?
+  public let extensionId: String?
+  public let extensionVersion: String?
+}
+
+public struct ToolRegistryDiagnostic: Codable, Sendable, Equatable {
+  public let file: String
+  public let reason: String
+}
+
+public struct ToolsRegistryResult: Codable, Sendable, Equatable {
+  public let tools: [ToolRegistryEntry]
+  public let diagnostics: [ToolRegistryDiagnostic]
+}

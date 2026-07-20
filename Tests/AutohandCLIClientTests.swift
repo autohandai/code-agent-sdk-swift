@@ -802,6 +802,8 @@ import Testing
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true,"updated":1,"unchanged":1,"results":[{"name":"swift-6","status":"updated"},{"name":"testing","status":"unchanged"}]}}\n' "$id" ;;
           *autohand.learn.generate*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true,"skillName":"swift-sdk-learning","skillPath":".agents/skills/swift-sdk-learning"}}\n' "$id" ;;
+          *autohand.getToolsRegistry*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"tools":[{"name":"read_file","description":"Read a file","requiresApproval":false,"source":"builtin","scope":"project","disabled":false,"schemaVersion":1,"reuseHint":"Reuse read results"}],"diagnostics":[{"file":"broken-tool.json","reason":"Invalid schema"}]}}\n' "$id" ;;
           *autohand.browserHandoff.create*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"token":"handoff-token","sessionId":"browser-session","workspaceRoot":"/workspace","createdAt":"2026-07-20T00:00:00Z","expiresAt":"2026-07-20T00:05:00Z","url":"https://example.test/handoff"}}\n' "$id" ;;
           *autohand.browserHandoff.attachLatest*)
