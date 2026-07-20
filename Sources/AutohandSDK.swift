@@ -94,6 +94,12 @@ public final class AutohandSDK: @unchecked Sendable {
     try await client.sessionDetails(parameters)
   }
 
+  public func attachSession(
+    _ parameters: SessionAttachParameters
+  ) async throws -> SessionAttachResult {
+    try await client.attachSession(parameters)
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

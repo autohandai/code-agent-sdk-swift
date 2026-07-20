@@ -585,6 +585,12 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(method: "autohand.getSession", parameters: parameters)
   }
 
+  public func attachSession(
+    _ parameters: SessionAttachParameters
+  ) async throws -> SessionAttachResult {
+    try await request(method: "autohand.session.attach", parameters: parameters)
+  }
+
   public func createBrowserHandoff(
     _ parameters: BrowserHandoffCreateParameters = .init()
   ) async throws -> BrowserHandoffCreateResult {

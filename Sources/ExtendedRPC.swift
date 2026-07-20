@@ -265,3 +265,19 @@ private struct SessionDetailsWire: Codable {
     self.error = error
   }
 }
+
+public struct SessionAttachParameters: Codable, Sendable, Equatable {
+  public let sessionId: String
+
+  public init(sessionId: String) {
+    self.sessionId = sessionId
+  }
+}
+
+public struct SessionAttachResult: Codable, Sendable, Equatable {
+  public let success: Bool
+  public let sessionId: String?
+  public let workspaceRoot: String?
+  public let messageCount: Int?
+  public let error: String?
+}

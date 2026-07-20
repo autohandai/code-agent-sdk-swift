@@ -132,6 +132,24 @@ import Testing
       #expect(error.error == "not found")
     }
 
+    @Test func sessionAttachmentDecodesTypedMetadata() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: configuration(for: fixture))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.attachSession(.init(sessionId: "session-existing"))
+
+      #expect(result.success)
+      #expect(result.sessionId == "session-existing")
+      #expect(result.messageCount == 7)
+      let request = try #require(requests(in: fixture).last)
+      #expect(request["method"] as? String == "autohand.session.attach")
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters["sessionId"] as? String == "session-existing")
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,
