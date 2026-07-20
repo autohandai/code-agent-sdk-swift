@@ -40,6 +40,23 @@ import Testing
       #expect(parameters["granted"] as? Bool == true)
     }
 
+    @Test func directoryAccessAcknowledgementUsesExactWireContract() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let sdk = AutohandSDK(configuration: configuration(for: fixture))
+      try sdk.start()
+      defer { sdk.close() }
+
+      let result = try await sdk.acknowledgeDirectoryAccess(.init(requestId: "directory-2"))
+
+      #expect(result.success)
+      let request = try #require(requests(in: fixture).last)
+      #expect(request["method"] as? String == "autohand.directoryAccessAcknowledged")
+      let parameters = try #require(request["params"] as? [String: Any])
+      #expect(parameters.count == 1)
+      #expect(parameters["requestId"] as? String == "directory-2")
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,

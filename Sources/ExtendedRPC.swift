@@ -33,3 +33,19 @@ public struct DirectoryAccessResponseResult: Codable, Sendable, Equatable {
     self.success = success
   }
 }
+
+public struct DirectoryAccessAcknowledgementParameters: Codable, Sendable, Equatable {
+  public let requestId: String
+
+  public init(requestId: String) {
+    self.requestId = requestId
+  }
+}
+
+public struct DirectoryAccessAcknowledgementResult: Codable, Sendable, Equatable {
+  public let success: Bool
+
+  public init(success: Bool) {
+    self.success = success
+  }
+}
