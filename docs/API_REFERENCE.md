@@ -49,6 +49,7 @@ existing iOS and provider-backed integrations source-compatible.
 - `startAutoMode(_:)` starts a bounded autonomous run with typed limits.
 - `autoModeStatus()` returns typed run state, file counts, branch, and checkpoint metadata.
 - `pauseAutoMode()` pauses the active autonomous run.
+- `resumeAutoMode()` resumes the paused autonomous run.
 - `startAutoresearch(_:)`, `autoresearchStatus()`, `stopAutoresearch()`
 - `autoresearchHistory()`, `replayAutoresearch(_:)`, `rescoreAutoresearch(_:)`
 - `compareAutoresearch(_:)`, `autoresearchPareto()`, `pinAutoresearch(_:)`

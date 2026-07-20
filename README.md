@@ -121,6 +121,7 @@ Use `attachLatestBrowserHandoff()` to select the newest handoff automatically.
 Start a bounded autonomous run with typed limits through `startAutoMode(_:)`.
 Inspect progress and checkpoint metadata with `autoModeStatus()`.
 Pause an active autonomous run with `pauseAutoMode()`.
+Resume it with `resumeAutoMode()`.
 
 `AutohandSDK` is the macOS CLI-facing API. The cross-platform `Agent` and
 `Runner` remain direct-provider APIs and do not silently launch a subprocess.

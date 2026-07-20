@@ -87,4 +87,8 @@ public final class AutohandSDK: @unchecked Sendable {
   public func pauseAutoMode() async throws -> AutoModeOperationResult {
     try await client.pauseAutoMode()
   }
+
+  public func resumeAutoMode() async throws -> AutoModeOperationResult {
+    try await client.resumeAutoMode()
+  }
 }
