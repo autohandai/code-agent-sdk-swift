@@ -549,3 +549,10 @@ public struct HookPostResponseEvent: Codable, Sendable, Equatable {
   public let duration: Double
   public let timestamp: String
 }
+
+public struct MCPInvocationRequestEvent: Codable, Sendable {
+  public let requestId: String
+  public let toolName: String
+  public let args: [String: AnyCodable]
+  public let timestamp: String
+}

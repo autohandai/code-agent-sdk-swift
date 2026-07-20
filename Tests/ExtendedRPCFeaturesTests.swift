@@ -463,6 +463,27 @@ import Testing
       #expect(events.first?.duration == 20.5)
     }
 
+    @Test func mcpInvocationRequestRejectsMalformedAndDeliversTypedEvent() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let recorder = FeatureEventRecorder()
+      let sdk = AutohandSDK(
+        configuration: configuration(for: fixture),
+        onEvent: { recorder.append($0) })
+      try sdk.start()
+      defer { sdk.close() }
+
+      _ = try await sdk.client.prompt("feature-events")
+
+      let events = recorder.events.compactMap { event -> MCPInvocationRequestEvent? in
+        if case .mcpInvocationRequest(let value) = event { return value }
+        return nil
+      }
+      #expect(events.count == 1)
+      #expect(events.first?.toolName == "vscode.openFile")
+      #expect(events.first?.args["path"]?.value as? String == "Sources/Agent.swift")
+    }
+
     private func configuration(for fixture: FakeCLIFixture) -> AutohandCLIConfiguration {
       .init(
         cwd: fixture.directory.path,

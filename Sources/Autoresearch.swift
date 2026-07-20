@@ -445,6 +445,7 @@ public enum AutohandCLIEvent: Sendable {
   case hookPostTool(HookPostToolEvent)
   case hookPrePrompt(HookPrePromptEvent)
   case hookPostResponse(HookPostResponseEvent)
+  case mcpInvocationRequest(MCPInvocationRequestEvent)
   case notification(method: String, payload: [String: AnyCodable], timestamp: String?)
 }
 

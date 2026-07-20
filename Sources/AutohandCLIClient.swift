@@ -948,6 +948,11 @@ public final class AutohandCLIClient: @unchecked Sendable {
         return
       }
       eventHandler(.hookPostResponse(event))
+    case "autohand.mcp.invokeRequest":
+      guard let event = try? JSONDecoder().decode(MCPInvocationRequestEvent.self, from: data) else {
+        return
+      }
+      eventHandler(.mcpInvocationRequest(event))
     default:
       let payload = (try? JSONDecoder().decode([String: AnyCodable].self, from: data)) ?? [:]
       eventHandler(
