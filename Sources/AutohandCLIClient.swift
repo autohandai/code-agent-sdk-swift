@@ -874,11 +874,25 @@ public final class AutohandCLIClient: @unchecked Sendable {
   }
 
   private func handleNotification(method: String, parameters: Any?) {
-    guard let eventHandler,
-      let parameters = parameters as? [String: Any],
-      JSONSerialization.isValidJSONObject(parameters),
+    guard let eventHandler else { return }
+    guard let parameters else {
+      eventHandler(.rawNotification(method: method, params: AnyCodable(NSNull())))
+      return
+    }
+    guard let parameters = parameters as? [String: Any] else {
+      eventHandler(.rawNotification(method: method, params: AnyCodable(parameters)))
+      return
+    }
+    guard JSONSerialization.isValidJSONObject(parameters),
       let data = try? JSONSerialization.data(withJSONObject: parameters)
     else { return }
+
+    let fallback = {
+      let payload = (try? JSONDecoder().decode([String: AnyCodable].self, from: data)) ?? [:]
+      eventHandler(
+        .notification(
+          method: method, payload: payload, timestamp: parameters["timestamp"] as? String))
+    }
 
     switch method {
     case "autohand.turnEnd":
@@ -930,24 +944,119 @@ public final class AutohandCLIClient: @unchecked Sendable {
       eventHandler(.autoModeError(event))
     case "autohand.hook.preTool":
       guard let event = try? JSONDecoder().decode(HookPreToolEvent.self, from: data) else {
+        fallback()
         return
       }
       eventHandler(.hookPreTool(event))
     case "autohand.hook.postTool":
-      guard let event = try? JSONDecoder().decode(HookPostToolEvent.self, from: data) else {
+      guard let event = try? JSONDecoder().decode(HookPostToolEvent.self, from: data),
+        event.duration.isFinite
+      else {
+        fallback()
         return
       }
       eventHandler(.hookPostTool(event))
+    case "autohand.hook.fileModified":
+      guard let event = try? JSONDecoder().decode(HookFileModifiedEvent.self, from: data) else {
+        fallback()
+        return
+      }
+      eventHandler(.hookFileModified(event))
     case "autohand.hook.prePrompt":
       guard let event = try? JSONDecoder().decode(HookPrePromptEvent.self, from: data) else {
+        fallback()
         return
       }
       eventHandler(.hookPrePrompt(event))
     case "autohand.hook.postResponse":
-      guard let event = try? JSONDecoder().decode(HookPostResponseEvent.self, from: data) else {
+      guard let event = try? JSONDecoder().decode(HookPostResponseEvent.self, from: data),
+        event.duration.isFinite
+      else {
+        fallback()
         return
       }
       eventHandler(.hookPostResponse(event))
+    case "autohand.hook.sessionError":
+      guard let event = try? JSONDecoder().decode(HookSessionErrorEvent.self, from: data) else {
+        fallback()
+        return
+      }
+      eventHandler(.hookSessionError(event))
+    case "autohand.hook.stop":
+      guard let event = try? JSONDecoder().decode(HookStopEvent.self, from: data),
+        event.duration.isFinite
+      else {
+        fallback()
+        return
+      }
+      eventHandler(.hookStop(event))
+    case "autohand.hook.sessionStart":
+      guard let event = try? JSONDecoder().decode(HookSessionStartEvent.self, from: data) else {
+        fallback()
+        return
+      }
+      eventHandler(.hookSessionStart(event))
+    case "autohand.hook.sessionEnd":
+      guard let event = try? JSONDecoder().decode(HookSessionEndEvent.self, from: data),
+        event.duration.isFinite
+      else {
+        fallback()
+        return
+      }
+      eventHandler(.hookSessionEnd(event))
+    case "autohand.hook.subagentStop":
+      guard let event = try? JSONDecoder().decode(HookSubagentStopEvent.self, from: data),
+        event.duration.isFinite
+      else {
+        fallback()
+        return
+      }
+      eventHandler(.hookSubagentStop(event))
+    case "autohand.hook.permissionRequest":
+      guard let event = try? JSONDecoder().decode(HookPermissionRequestEvent.self, from: data) else {
+        fallback()
+        return
+      }
+      eventHandler(.hookPermissionRequest(event))
+    case "autohand.hook.notification":
+      guard let event = try? JSONDecoder().decode(HookNotificationEvent.self, from: data) else {
+        fallback()
+        return
+      }
+      eventHandler(.hookNotification(event))
+    case "autohand.hook.contextCompacted":
+      guard let event = try? JSONDecoder().decode(HookContextCompactedEvent.self, from: data),
+        event.croppedCount >= 0, event.usagePercent.isFinite, event.usagePercent >= 0
+      else {
+        fallback()
+        return
+      }
+      eventHandler(.hookContextCompacted(event))
+    case "autohand.hook.contextOverflow":
+      guard let event = try? JSONDecoder().decode(HookContextOverflowEvent.self, from: data),
+        event.tokensBefore >= 0, event.tokensAfter >= 0, event.croppedCount >= 0,
+        event.usagePercent.isFinite, event.usagePercent >= 0
+      else {
+        fallback()
+        return
+      }
+      eventHandler(.hookContextOverflow(event))
+    case "autohand.hook.contextWarning":
+      guard let event = try? JSONDecoder().decode(HookContextWarningEvent.self, from: data),
+        event.usagePercent.isFinite, event.usagePercent >= 0, event.remainingTokens >= 0
+      else {
+        fallback()
+        return
+      }
+      eventHandler(.hookContextWarning(event))
+    case "autohand.hook.contextCritical":
+      guard let event = try? JSONDecoder().decode(HookContextCriticalEvent.self, from: data),
+        event.usagePercent.isFinite, event.usagePercent >= 0, event.remainingTokens >= 0
+      else {
+        fallback()
+        return
+      }
+      eventHandler(.hookContextCritical(event))
     case "autohand.mcp.invokeRequest":
       guard let event = try? JSONDecoder().decode(MCPInvocationRequestEvent.self, from: data) else {
         return
@@ -964,10 +1073,7 @@ public final class AutohandCLIClient: @unchecked Sendable {
       }
       eventHandler(.learnProgress(event))
     default:
-      let payload = (try? JSONDecoder().decode([String: AnyCodable].self, from: data)) ?? [:]
-      eventHandler(
-        .notification(
-          method: method, payload: payload, timestamp: parameters["timestamp"] as? String))
+      fallback()
     }
   }
 }

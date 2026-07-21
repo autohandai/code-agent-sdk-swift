@@ -463,6 +463,142 @@ import Testing
       #expect(events.first?.duration == 20.5)
     }
 
+    @Test func remainingHookNotificationsDeliverExactTypedPayloads() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let recorder = FeatureEventRecorder()
+      let sdk = AutohandSDK(
+        configuration: configuration(for: fixture),
+        onEvent: { recorder.append($0) })
+      try sdk.start()
+      defer { sdk.close() }
+
+      _ = try await sdk.client.prompt("feature-events")
+
+      let file = try #require(recorder.events.compactMap { event -> HookFileModifiedEvent? in
+        if case .hookFileModified(let value) = event { return value }
+        return nil
+      }.first)
+      #expect(file.changeType == .modify)
+      let sessionError = try #require(recorder.events.compactMap { event -> HookSessionErrorEvent? in
+        if case .hookSessionError(let value) = event { return value }
+        return nil
+      }.first)
+      #expect(sessionError.context?["retryAfter"]?.value as? Int == 60)
+      let stop = try #require(recorder.events.compactMap { event -> HookStopEvent? in
+        if case .hookStop(let value) = event { return value }
+        return nil
+      }.first)
+      #expect(stop.tokensUsageStatus == .unavailable)
+      #expect(stop.duration == 300.5)
+      let start = try #require(recorder.events.compactMap { event -> HookSessionStartEvent? in
+        if case .hookSessionStart(let value) = event { return value }
+        return nil
+      }.first)
+      #expect(start.sessionType == .resume)
+      let end = try #require(recorder.events.compactMap { event -> HookSessionEndEvent? in
+        if case .hookSessionEnd(let value) = event { return value }
+        return nil
+      }.first)
+      #expect(end.reason == .clear)
+      let subagent = try #require(recorder.events.compactMap { event -> HookSubagentStopEvent? in
+        if case .hookSubagentStop(let value) = event { return value }
+        return nil
+      }.first)
+      #expect(subagent.error == "Review failed")
+      let permission = try #require(recorder.events.compactMap { event -> HookPermissionRequestEvent? in
+        if case .hookPermissionRequest(let value) = event { return value }
+        return nil
+      }.first)
+      #expect(permission.args?["content"]?.value as? String == "updated")
+      let notification = try #require(recorder.events.compactMap { event -> HookNotificationEvent? in
+        if case .hookNotification(let value) = event { return value }
+        return nil
+      }.first)
+      #expect(notification.message == "Context is nearly full")
+      let compacted = try #require(recorder.events.compactMap { event -> HookContextCompactedEvent? in
+        if case .hookContextCompacted(let value) = event { return value }
+        return nil
+      }.first)
+      #expect(compacted.usagePercent == 0.6125)
+      #expect(compacted.summary == "Earlier turns summarized")
+      let overflow = try #require(recorder.events.compactMap { event -> HookContextOverflowEvent? in
+        if case .hookContextOverflow(let value) = event { return value }
+        return nil
+      }.first)
+      #expect(overflow.tokensBefore == 120_000)
+      #expect(overflow.usagePercent == 1.05)
+      let warning = try #require(recorder.events.compactMap { event -> HookContextWarningEvent? in
+        if case .hookContextWarning(let value) = event { return value }
+        return nil
+      }.first)
+      #expect(warning.usagePercent == 0.805)
+      let critical = try #require(recorder.events.compactMap { event -> HookContextCriticalEvent? in
+        if case .hookContextCritical(let value) = event { return value }
+        return nil
+      }.first)
+      #expect(critical.usagePercent == 0.9575)
+    }
+
+    @Test func malformedKnownHooksUseExactMethodNotificationFallback() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let recorder = FeatureEventRecorder()
+      let sdk = AutohandSDK(
+        configuration: configuration(for: fixture),
+        onEvent: { recorder.append($0) })
+      try sdk.start()
+      defer { sdk.close() }
+
+      _ = try await sdk.client.prompt("feature-events")
+
+      let fallbackMethods = Set(recorder.events.compactMap { event -> String? in
+        guard case .notification(let method, let payload, _) = event,
+          payload["malformedMarker"]?.value as? String == method
+        else { return nil }
+        return method
+      })
+      #expect(fallbackMethods == Set([
+        "autohand.hook.preTool", "autohand.hook.postTool",
+        "autohand.hook.fileModified", "autohand.hook.prePrompt",
+        "autohand.hook.postResponse", "autohand.hook.sessionError",
+        "autohand.hook.stop", "autohand.hook.sessionStart",
+        "autohand.hook.sessionEnd", "autohand.hook.subagentStop",
+        "autohand.hook.permissionRequest", "autohand.hook.notification",
+        "autohand.hook.contextCompacted", "autohand.hook.contextOverflow",
+        "autohand.hook.contextWarning", "autohand.hook.contextCritical",
+      ]))
+    }
+
+    @Test func nonObjectNotificationParamsPreserveExactTopLevelShape() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      let recorder = FeatureEventRecorder()
+      let sdk = AutohandSDK(
+        configuration: configuration(for: fixture),
+        onEvent: { recorder.append($0) })
+      try sdk.start()
+      defer { sdk.close() }
+
+      _ = try await sdk.client.prompt("feature-events")
+
+      let rawEvents: [String: Any] = Dictionary(
+        uniqueKeysWithValues: recorder.events.compactMap { event in
+          guard case .rawNotification(let method, let params) = event else { return nil }
+          return (method, params.value)
+        })
+      let knownArray = try #require(rawEvents["autohand.hook.preTool"] as? [Any])
+      #expect(knownArray[0] as? Int == 1)
+      #expect(knownArray[1] as? String == "known-array")
+      #expect(rawEvents["autohand.hook.stop"] is NSNull)
+      #expect(rawEvents["autohand.hook.notification"] as? String == "known-scalar")
+      let futureArray = try #require(rawEvents["autohand.future.array"] as? [Any])
+      #expect(futureArray[0] as? Int == 2)
+      #expect(futureArray[1] as? String == "future-array")
+      #expect(rawEvents["autohand.future.null"] is NSNull)
+      #expect(rawEvents["autohand.future.scalar"] as? Int == 42)
+    }
+
     @Test func mcpInvocationRequestRejectsMalformedAndDeliversTypedEvent() async throws {
       let fixture = try FakeCLIFixture()
       defer { fixture.remove() }

@@ -550,6 +550,110 @@ public struct HookPostResponseEvent: Codable, Sendable, Equatable {
   public let timestamp: String
 }
 
+public enum HookFileChangeType: String, Codable, Sendable, CaseIterable {
+  case create
+  case modify
+  case delete
+}
+
+public struct HookFileModifiedEvent: Codable, Sendable, Equatable {
+  public let filePath: String
+  public let changeType: HookFileChangeType
+  public let toolId: String
+  public let timestamp: String
+}
+
+public struct HookSessionErrorEvent: Codable, Sendable {
+  public let error: String
+  public let code: String?
+  public let context: [String: AnyCodable]?
+  public let timestamp: String
+}
+
+public struct HookStopEvent: Codable, Sendable, Equatable {
+  public let tokensUsed: Int
+  public let tokensUsageStatus: TokenUsageStatus?
+  public let toolCallsCount: Int
+  public let duration: Double
+  public let timestamp: String
+}
+
+public enum HookSessionType: String, Codable, Sendable, CaseIterable {
+  case startup
+  case resume
+  case clear
+}
+
+public struct HookSessionStartEvent: Codable, Sendable, Equatable {
+  public let sessionType: HookSessionType
+  public let timestamp: String
+}
+
+public enum HookSessionEndReason: String, Codable, Sendable, CaseIterable {
+  case quit
+  case clear
+  case exit
+  case error
+}
+
+public struct HookSessionEndEvent: Codable, Sendable, Equatable {
+  public let reason: HookSessionEndReason
+  public let duration: Double
+  public let timestamp: String
+}
+
+public struct HookSubagentStopEvent: Codable, Sendable, Equatable {
+  public let subagentId: String
+  public let subagentName: String
+  public let subagentType: String
+  public let success: Bool
+  public let duration: Double
+  public let error: String?
+  public let timestamp: String
+}
+
+public struct HookPermissionRequestEvent: Codable, Sendable {
+  public let tool: String
+  public let path: String?
+  public let command: String?
+  public let args: [String: AnyCodable]?
+  public let timestamp: String
+}
+
+public struct HookNotificationEvent: Codable, Sendable, Equatable {
+  public let notificationType: String
+  public let message: String
+  public let timestamp: String
+}
+
+public struct HookContextCompactedEvent: Codable, Sendable, Equatable {
+  public let croppedCount: Int
+  public let summary: String?
+  public let usagePercent: Double
+  public let reason: String
+  public let timestamp: String
+}
+
+public struct HookContextOverflowEvent: Codable, Sendable, Equatable {
+  public let tokensBefore: Int
+  public let tokensAfter: Int
+  public let croppedCount: Int
+  public let usagePercent: Double
+  public let timestamp: String
+}
+
+public struct HookContextWarningEvent: Codable, Sendable, Equatable {
+  public let usagePercent: Double
+  public let remainingTokens: Int
+  public let timestamp: String
+}
+
+public struct HookContextCriticalEvent: Codable, Sendable, Equatable {
+  public let usagePercent: Double
+  public let remainingTokens: Int
+  public let timestamp: String
+}
+
 public struct MCPInvocationRequestEvent: Codable, Sendable {
   public let requestId: String
   public let toolName: String
