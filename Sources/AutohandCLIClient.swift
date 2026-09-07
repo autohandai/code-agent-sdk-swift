@@ -504,6 +504,13 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await command("/autoresearch", arguments: objective)
   }
 
+  /// Return effective subagents, including inline and enabled extension agents.
+  public func supportedAgents() async throws -> [AgentInfo] {
+    let result: SupportedAgentsResult = try await request(
+      method: "autohand.getSupportedAgents", parameters: EmptyParameters())
+    return result.agents
+  }
+
   public func supportedCommands() async throws -> [String] {
     let result: SupportedCommandsResult = try await request(
       method: "autohand.getSupportedCommands", parameters: EmptyParameters())

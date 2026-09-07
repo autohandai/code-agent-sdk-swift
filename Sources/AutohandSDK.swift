@@ -28,6 +28,10 @@ public final class AutohandSDK: @unchecked Sendable {
     client.close()
   }
 
+  public func supportedAgents() async throws -> [AgentInfo] {
+    try await client.supportedAgents()
+  }
+
   public func getSkillsRegistry(
     _ parameters: GetSkillsRegistryParameters = .init()
   ) async throws -> GetSkillsRegistryResult {

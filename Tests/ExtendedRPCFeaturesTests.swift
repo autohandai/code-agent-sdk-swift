@@ -5,6 +5,43 @@ import Testing
 
 #if os(macOS)
   @Suite struct ExtendedRPCFeaturesTests {
+    @Test func discoversEffectiveAgents() async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      var config = configuration(for: fixture)
+      config.environment["AUTOHAND_TEST_AGENTS"] = #"{"agents":[{"id":"reviewer","name":"reviewer","description":"Review changes","tools":["read_file"],"model":"fantail","source":"extension","extensionId":"example.review","extensionVersion":"1.0.0","extensionScope":"project"}]}"#
+      let sdk = AutohandSDK(configuration: config)
+      try sdk.start()
+      defer { sdk.close() }
+      let agents = try await sdk.supportedAgents()
+      #expect(agents.count == 1)
+      let agent = try #require(agents.first)
+      #expect(agent.id == "reviewer")
+      #expect(agent.tools == ["read_file"])
+      #expect(agent.model == "fantail")
+      #expect(agent.source == "extension")
+      #expect(agent.extensionId == "example.review")
+      #expect(agent.extensionVersion == "1.0.0")
+      #expect(agent.extensionScope == .project)
+      let request = try #require(requests(in: fixture).last)
+      #expect(request["method"] as? String == "autohand.getSupportedAgents")
+      #expect((request["params"] as? [String: Any])?.isEmpty == true)
+    }
+
+    @Test(arguments: ["{}", #"{"agents":null}"#, #"{"agents":[{}]}"#,
+      #"{"agents":[{"id":"one","name":"one","description":"Agent","tools":[1]}]}"#,
+      #"{"agents":[{"id":"one","name":"one","description":"Agent","tools":[],"extensionScope":"invalid"}]}"#])
+    func rejectsMalformedAgentDiscovery(result: String) async throws {
+      let fixture = try FakeCLIFixture()
+      defer { fixture.remove() }
+      var config = configuration(for: fixture)
+      config.environment["AUTOHAND_TEST_AGENTS"] = result
+      let sdk = AutohandSDK(configuration: config)
+      try sdk.start()
+      defer { sdk.close() }
+      await #expect(throws: (any Error).self) { try await sdk.supportedAgents() }
+    }
+
     @Test func permissionAcknowledgementUsesExactWireContract() async throws {
       let fixture = try FakeCLIFixture()
       defer { fixture.remove() }

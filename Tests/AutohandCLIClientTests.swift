@@ -881,6 +881,8 @@ import Testing
             (sleep "${AUTOHAND_PROMPT_DELAY:-0.2}"; printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id") & ;;
           *autohand.getSupportedCommands*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"commands":["help","deep-research","autoresearch"]}}\n' "$id" ;;
+          *autohand.getSupportedAgents*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":%s}\n' "$id" "$AUTOHAND_TEST_AGENTS" ;;
           *autohand.goal.get*)
             printf '{"jsonrpc":"2.0","method":"autohand.turnEnd","params":{"turnId":"turn-1","tokensUsed":42,"tokensUsageStatus":"actual","durationMs":125,"contextPercent":12.5,"timestamp":"2026-07-17T00:00:00Z"}}\n'
             printf '{"jsonrpc":"2.0","id":%s,"result":{"version":1,"goal":null,"queue":[],"completed":[],"updatedAt":1784246400}}\n' "$id" ;;
