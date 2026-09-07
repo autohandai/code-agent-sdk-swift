@@ -44,6 +44,7 @@ public struct AutohandCLIConfiguration: Sendable {
   public var debug: Bool
   public var timeout: TimeInterval
   public var model: String?
+  public var provider: String?
   public var bare: Bool?
   public var idleLogout: Bool?
   public var unrestricted: Bool?
@@ -95,6 +96,7 @@ public struct AutohandCLIConfiguration: Sendable {
     debug: Bool = false,
     timeout: TimeInterval = 300,
     model: String? = nil,
+    provider: String? = nil,
     bare: Bool? = nil,
     idleLogout: Bool? = nil,
     unrestricted: Bool? = nil,
@@ -145,6 +147,7 @@ public struct AutohandCLIConfiguration: Sendable {
     self.debug = debug
     self.timeout = timeout
     self.model = model
+    self.provider = provider
     self.bare = bare
     self.idleLogout = idleLogout
     self.unrestricted = unrestricted
@@ -257,6 +260,7 @@ public struct AutohandCLIConfiguration: Sendable {
     if let autohandAIAPIKey { values["AUTOHAND_AI_API_KEY"] = autohandAIAPIKey }
     if let autohandAIBaseURL { values["AUTOHAND_AI_BASE_URL"] = autohandAIBaseURL }
     if let autohandAIPlan { values["AUTOHAND_AI_PLAN"] = autohandAIPlan }
+    if let provider { values["AUTOHAND_PROVIDER"] = provider }
     return values
   }
 }

@@ -5,7 +5,7 @@ import Testing
 
 @Suite(.serialized) struct AutohandCLIClientTests {
   @Test func currentCLIFlagsUseExactArgumentContract() {
-    let configuration = AutohandCLIConfiguration(
+    var configuration = AutohandCLIConfiguration(
       cwd: "/workspace",
       model: "fantail",
       bare: true,
@@ -49,6 +49,7 @@ import Testing
       autohandAIAPIKey: "test-key",
       autohandAIBaseURL: "https://api.autohand.ai/v1",
       autohandAIPlan: "cloud")
+    configuration.provider = "autohandai"
 
     #expect(
       configuration.cliArguments == [
@@ -93,6 +94,7 @@ import Testing
         "--yolo", "read_*",
         "--yolo-timeout", "30",
       ])
+    #expect(configuration.cliEnvironment["AUTOHAND_PROVIDER"] == "autohandai")
     #expect(configuration.cliEnvironment["AUTOHAND_AI_API_KEY"] == "test-key")
     #expect(configuration.cliEnvironment["AUTOHAND_AI_BASE_URL"] == "https://api.autohand.ai/v1")
     #expect(configuration.cliEnvironment["AUTOHAND_AI_PLAN"] == "cloud")
