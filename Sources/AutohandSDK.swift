@@ -18,6 +18,12 @@ public final class AutohandSDK: @unchecked Sendable {
     client = AutohandCLIClient(configuration: configuration, onEvent: onEvent)
   }
 
+  /// Observe exact CLI packets independently of typed run events.
+  @discardableResult
+  public func onNotification(_ callback: @escaping AutohandCLIClient.NotificationHandler) -> @Sendable () -> Void {
+    client.onNotification(callback)
+  }
+
   public var isRunning: Bool { client.isRunning }
 
   public func start() throws {
@@ -26,6 +32,38 @@ public final class AutohandSDK: @unchecked Sendable {
 
   public func close() {
     client.close()
+  }
+
+  public func send(_ message: String, options: AutohandPromptOptions = .init()) -> AutohandRun {
+    client.send(message, options: options)
+  }
+
+  public func run(_ message: String, options: AutohandPromptOptions = .init()) async throws -> AutohandRunResult {
+    try await client.run(message, options: options)
+  }
+
+  public func rpc(_ method: String, parameters: [String: AnyCodable] = [:]) async throws -> [String: AnyCodable] {
+    try await client.rpc(method, parameters: parameters)
+  }
+  public func setBrowserCapabilities(protocolVersion: Int, extensionVersion: String? = nil,
+    tools: [String]) async throws -> [String: AnyCodable] {
+    try await client.setBrowserCapabilities(protocolVersion: protocolVersion, extensionVersion: extensionVersion, tools: tools)
+  }
+  public func getState() async throws -> [String: AnyCodable] { try await client.getState() }
+  public func getMessages() async throws -> [String: AnyCodable] { try await client.getMessages() }
+  public func getSupportedModels() async throws -> [String: AnyCodable] { try await client.getSupportedModels() }
+  public func getContextUsage() async throws -> [String: AnyCodable] { try await client.getContextUsage() }
+  public func reloadPlugins() async throws -> [String: AnyCodable] { try await client.reloadPlugins() }
+  public func getAccountInfo() async throws -> [String: AnyCodable] { try await client.getAccountInfo() }
+  public func setPermissionMode(_ value: String) async throws -> [String: AnyCodable] { try await client.setPermissionMode(value) }
+  public func setMaxThinkingTokens(_ value: Int?) async throws -> [String: AnyCodable] { try await client.setMaxThinkingTokens(value) }
+  public func setModel(_ value: String) async throws -> [String: AnyCodable] { try await client.setModel(value) }
+  public func reconnectMCPServer(_ value: String) async throws -> [String: AnyCodable] { try await client.reconnectMCPServer(value) }
+  public func setPlanMode(_ value: Bool) async throws -> [String: AnyCodable] { try await client.setPlanMode(value) }
+  public func setMCPServers(_ value: [String: AnyCodable]) async throws -> [String: AnyCodable] { try await client.setMCPServers(value) }
+  public func respondToPermission(_ value: [String: AnyCodable]) async throws -> [String: AnyCodable] { try await client.respondToPermission(value) }
+  public func toggleMCPServer(_ name: String, enabled: Bool) async throws -> [String: AnyCodable] {
+    try await client.toggleMCPServer(name, enabled: enabled)
   }
 
   public func supportedAgents() async throws -> [AgentInfo] {
