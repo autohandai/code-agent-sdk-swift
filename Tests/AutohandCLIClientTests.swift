@@ -48,7 +48,7 @@ import Testing
         "--unrestricted",
         "--auto-mode",
         "--auto-skill",
-        "-c",
+        "--auto-commit",
         "--no-idle-logout",
         "--context-compact",
         "--fork", "session-123",

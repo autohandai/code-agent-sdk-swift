@@ -217,7 +217,7 @@ public struct AutohandCLIConfiguration: Sendable {
     if unrestricted == true { arguments.append("--unrestricted") }
     if autoMode == true { arguments.append("--auto-mode") }
     if autoSkill == true { arguments.append("--auto-skill") }
-    if autoCommit == true { arguments.append("-c") }
+    if autoCommit == true { arguments.append("--auto-commit") }
     if idleLogout == false { arguments.append("--no-idle-logout") }
     if contextCompact == false { arguments.append("--no-context-compact") }
     if contextCompact == true { arguments.append("--context-compact") }
