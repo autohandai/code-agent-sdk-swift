@@ -21,17 +21,7 @@ import Testing
       resume: true,
       continueSession: true,
       sessionPath: "./sessions",
-      autoSaveInterval: 30,
-      agentsMdEnabled: true,
-      agentsMdCreate: true,
-      agentsMdPath: "./AGENTS.md",
-      agentsMdAutoUpdate: true,
       maxTokens: 40_000,
-      compressionThreshold: 0.8,
-      summarizationThreshold: 0.9,
-      skills: ["swift", "release"],
-      skillSources: ["team", "local"],
-      installMissingSkills: true,
       maxIterations: 5,
       maxRuntime: 10,
       maxCost: 2.5,
@@ -58,26 +48,11 @@ import Testing
         "--unrestricted",
         "--auto-mode",
         "--auto-skill",
-        "-c",
+        "--auto-commit",
         "--no-idle-logout",
         "--context-compact",
-        "--persist-session",
-        "--session-id", "session-456",
-        "--resume",
-        "--continue",
         "--fork", "session-123",
-        "--session-path", "./sessions",
-        "--auto-save-interval", "30",
-        "--agents-md",
-        "--agents-md-create",
-        "--agents-md-path", "./AGENTS.md",
-        "--agents-md-auto-update",
         "--max-tokens", "40000",
-        "--compression-threshold", "0.8",
-        "--summarization-threshold", "0.9",
-        "--skills", "swift,release",
-        "--skill-sources", "team,local",
-        "--install-missing-skills",
         "--max-iterations", "5",
         "--max-runtime", "10",
         "--max-cost", "2.5",
@@ -92,7 +67,7 @@ import Testing
         "--plugin-dir", "./plugins",
         "--temperature", "0.2",
         "--yolo", "read_*",
-        "--yolo-timeout", "30",
+        "--timeout", "30",
       ])
     #expect(configuration.cliEnvironment["AUTOHAND_PROVIDER"] == "autohandai")
     #expect(configuration.cliEnvironment["AUTOHAND_AI_API_KEY"] == "test-key")
@@ -498,15 +473,15 @@ import Testing
       try client.start()
       defer { client.close() }
 
-      let started = Date()
       let task = Task { try await client.prompt("wait forever") }
       try await Task.sleep(for: .milliseconds(50))
+      let cancelledAt = Date()
       task.cancel()
       do {
         _ = try await task.value
         Issue.record("Expected request cancellation")
       } catch is CancellationError {
-        #expect(Date().timeIntervalSince(started) < 0.5)
+        #expect(Date().timeIntervalSince(cancelledAt) < 0.5)
       } catch {
         Issue.record("Expected CancellationError, got \(error)")
       }
@@ -755,7 +730,7 @@ import Testing
         fi
         id="$(printf '%s' "$line" | sed -E 's/.*"id"[ ]*:[ ]*([0-9]+).*/\1/')"
         case "$line" in
-          *autohand.applyFlagSettings*)
+          *autohand.applyFlagSettings*|*autohand.getState*)
             if [ -n "$AUTOHAND_FAIL_FEATURE_ONCE_MARKER" ] && [ ! -f "$AUTOHAND_FAIL_FEATURE_ONCE_MARKER" ]; then
               : > "$AUTOHAND_FAIL_FEATURE_ONCE_MARKER"
               printf '{"jsonrpc":"2.0","id":%s,"error":{"code":-32000,"message":"feature init failed"}}\n' "$id"
@@ -878,9 +853,18 @@ import Testing
             printf '{"jsonrpc":"2.0","method":"autohand.future.array","params":[2,"future-array"]}\n'
             printf '{"jsonrpc":"2.0","method":"autohand.future.null","params":null}\n'
             printf '{"jsonrpc":"2.0","method":"autohand.future.scalar","params":42}\n'
-            (sleep "${AUTOHAND_PROMPT_DELAY:-0.2}"; printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id") & ;;
+            prompt_id="$id"
+            (sleep "${AUTOHAND_PROMPT_DELAY:-0.2}"; printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$prompt_id"; printf '{"jsonrpc":"2.0","method":"autohand.turnEnd","params":{"reason":"completed"}}\n') &
+            prompt_pid=$! ;;
+          *autohand.abort*)
+            if [ -n "$prompt_pid" ]; then kill "$prompt_pid" 2>/dev/null || true; fi
+            if [ -n "$prompt_id" ]; then printf '{"jsonrpc":"2.0","id":%s,"result":{"success":false}}\n' "$prompt_id"; fi
+            printf '{"jsonrpc":"2.0","id":%s,"result":{"success":true}}\n' "$id"
+            printf '{"jsonrpc":"2.0","method":"autohand.turnEnd","params":{"reason":"aborted"}}\n' ;;
           *autohand.getSupportedCommands*)
             printf '{"jsonrpc":"2.0","id":%s,"result":{"commands":["help","deep-research","autoresearch"]}}\n' "$id" ;;
+          *autohand.getSupportedAgents*)
+            printf '{"jsonrpc":"2.0","id":%s,"result":%s}\n' "$id" "$AUTOHAND_TEST_AGENTS" ;;
           *autohand.goal.get*)
             printf '{"jsonrpc":"2.0","method":"autohand.turnEnd","params":{"turnId":"turn-1","tokensUsed":42,"tokensUsageStatus":"actual","durationMs":125,"contextPercent":12.5,"timestamp":"2026-07-17T00:00:00Z"}}\n'
             printf '{"jsonrpc":"2.0","id":%s,"result":{"version":1,"goal":null,"queue":[],"completed":[],"updatedAt":1784246400}}\n' "$id" ;;

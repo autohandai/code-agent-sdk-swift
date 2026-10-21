@@ -1,5 +1,42 @@
 import Foundation
 
+/// Effective subagent metadata returned by the running CLI registry.
+public struct AgentInfo: Codable, Sendable, Equatable {
+  public let id: String
+  public let name: String
+  public let description: String
+  public let tools: [String]
+  public let model: String?
+  public let source: String?
+  public let extensionId: String?
+  public let extensionVersion: String?
+  public let extensionScope: AgentExtensionScope?
+
+  public init(
+    id: String, name: String, description: String, tools: [String], model: String? = nil,
+    source: String? = nil, extensionId: String? = nil, extensionVersion: String? = nil,
+    extensionScope: AgentExtensionScope? = nil
+  ) {
+    self.id = id
+    self.name = name
+    self.description = description
+    self.tools = tools
+    self.model = model
+    self.source = source
+    self.extensionId = extensionId
+    self.extensionVersion = extensionVersion
+    self.extensionScope = extensionScope
+  }
+}
+
+public enum AgentExtensionScope: String, Codable, Sendable {
+  case user, project
+}
+
+struct SupportedAgentsResult: Codable, Sendable {
+  let agents: [AgentInfo]
+}
+
 // MARK: - Skills registry
 
 /// Community skill metadata returned by `autohand.getSkillsRegistry`.

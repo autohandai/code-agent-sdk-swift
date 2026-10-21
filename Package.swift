@@ -25,7 +25,8 @@ let package = Package(
         .testTarget(
             name: "AgentSDKTests",
             dependencies: ["AgentSDK"],
-            path: "Tests"
+            path: "Tests",
+            exclude: ["fixtures"]
         ),
         .executableTarget(
             name: "AgentSDKBenchmark",

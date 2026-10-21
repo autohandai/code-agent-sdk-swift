@@ -45,6 +45,10 @@ public struct AutohandCLIConfiguration: Sendable {
   public var timeout: TimeInterval
   public var model: String?
   public var provider: String?
+  public var apiKey: String?
+  public var baseURL: String?
+  public var port: Int?
+  public var runSettings: [String: AnyCodable]?
   public var bare: Bool?
   public var idleLogout: Bool?
   public var unrestricted: Bool?
@@ -53,6 +57,9 @@ public struct AutohandCLIConfiguration: Sendable {
   public var autoCommit: Bool?
   public var contextCompact: Bool?
   public var fork: String?
+  /// Keep this run out of session history and synchronization.
+  public var ephemeral: Bool
+  /// Legacy compatibility; use ephemeral to disable persistence.
   public var persistSession: Bool?
   public var sessionId: String?
   public var resume: Bool?
@@ -97,6 +104,9 @@ public struct AutohandCLIConfiguration: Sendable {
     timeout: TimeInterval = 300,
     model: String? = nil,
     provider: String? = nil,
+    apiKey: String? = nil,
+    baseURL: String? = nil,
+    port: Int? = nil,
     bare: Bool? = nil,
     idleLogout: Bool? = nil,
     unrestricted: Bool? = nil,
@@ -106,6 +116,7 @@ public struct AutohandCLIConfiguration: Sendable {
     contextCompact: Bool? = nil,
     fork: String? = nil,
     persistSession: Bool? = nil,
+    ephemeral: Bool = false,
     sessionId: String? = nil,
     resume: Bool? = nil,
     continueSession: Bool? = nil,
@@ -136,6 +147,7 @@ public struct AutohandCLIConfiguration: Sendable {
     yolo: String? = nil,
     yoloTimeout: Int? = nil,
     features: AutohandFeatureFlagSettings? = nil,
+    runSettings: [String: AnyCodable]? = nil,
     autohandAIAPIKey: String? = nil,
     autohandAIBaseURL: String? = nil,
     autohandAIPlan: String? = nil,
@@ -148,6 +160,10 @@ public struct AutohandCLIConfiguration: Sendable {
     self.timeout = timeout
     self.model = model
     self.provider = provider
+    self.apiKey = apiKey
+    self.baseURL = baseURL
+    self.port = port
+    self.runSettings = runSettings
     self.bare = bare
     self.idleLogout = idleLogout
     self.unrestricted = unrestricted
@@ -157,6 +173,7 @@ public struct AutohandCLIConfiguration: Sendable {
     self.contextCompact = contextCompact
     self.fork = fork
     self.persistSession = persistSession
+    self.ephemeral = ephemeral
     self.sessionId = sessionId
     self.resume = resume
     self.continueSession = continueSession
@@ -200,16 +217,13 @@ public struct AutohandCLIConfiguration: Sendable {
     if unrestricted == true { arguments.append("--unrestricted") }
     if autoMode == true { arguments.append("--auto-mode") }
     if autoSkill == true { arguments.append("--auto-skill") }
-    if autoCommit == true { arguments.append("-c") }
+    if autoCommit == true { arguments.append("--auto-commit") }
     if idleLogout == false { arguments.append("--no-idle-logout") }
     if contextCompact == false { arguments.append("--no-context-compact") }
     if contextCompact == true { arguments.append("--context-compact") }
-    if persistSession == true { arguments.append("--persist-session") }
-    append(&arguments, flag: "--session-id", value: sessionId)
-    if resume == true { arguments.append("--resume") }
-    if continueSession == true { arguments.append("--continue") }
-    append(&arguments, flag: "--fork", value: fork)
-    append(&arguments, flag: "--session-path", value: sessionPath)
+    if let fork { append(&arguments, flag: "--fork", value: fork) }
+    else if let reference = sessionId ?? sessionPath { append(&arguments, flag: "--sdk-session-reference", value: reference) }
+    else if resume == true || continueSession == true { arguments.append("--sdk-resume-last") }
     append(&arguments, flag: "--auto-save-interval", value: autoSaveInterval)
     if agentsMdEnabled == false { arguments.append("--no-agents-md") }
     if agentsMdEnabled == true { arguments.append("--agents-md") }
@@ -240,7 +254,9 @@ public struct AutohandCLIConfiguration: Sendable {
     append(&arguments, flag: "--plugin-dir", value: pluginDirectory)
     append(&arguments, flag: "--temperature", value: temperature)
     append(&arguments, flag: "--yolo", value: yolo)
-    append(&arguments, flag: "--yolo-timeout", value: yoloTimeout)
+    append(&arguments, flag: "--timeout", value: yoloTimeout)
+    if needsRuntimeSettings || environment["AUTOHAND_RUN_SETTINGS"] != nil { arguments.append(contentsOf: ["--sdk-settings-version", "1"]) }
+    if ephemeral { arguments.append("--ephemeral") }
     arguments.append(contentsOf: extraArguments)
     return arguments
   }
@@ -257,8 +273,8 @@ public struct AutohandCLIConfiguration: Sendable {
 
   var cliEnvironment: [String: String] {
     var values = environment
-    if let autohandAIAPIKey { values["AUTOHAND_AI_API_KEY"] = autohandAIAPIKey }
-    if let autohandAIBaseURL { values["AUTOHAND_AI_BASE_URL"] = autohandAIBaseURL }
+    if let key = autohandAIAPIKey ?? (provider == "autohandai" ? apiKey : nil) { values["AUTOHAND_AI_API_KEY"] = key }
+    if let url = autohandAIBaseURL ?? (provider == "autohandai" ? baseURL : nil) { values["AUTOHAND_AI_BASE_URL"] = url }
     if let autohandAIPlan { values["AUTOHAND_AI_PLAN"] = autohandAIPlan }
     if let provider { values["AUTOHAND_PROVIDER"] = provider }
     return values
@@ -293,6 +309,7 @@ private struct EmptyParameters: Codable, Sendable {}
 
 private struct PromptParameters: Codable, Sendable {
   let message: String
+  var stopWhen: [String: String]? = nil
 }
 
 public struct AutohandPromptResult: Codable, Sendable {
@@ -337,6 +354,7 @@ private struct AutoresearchLifecyclePayload: Codable, Sendable {
 )
 public final class AutohandCLIClient: @unchecked Sendable {
   public typealias EventHandler = @Sendable (AutohandCLIEvent) -> Void
+  public typealias NotificationHandler = @Sendable (WireNotification) throws -> Void
 
   private let configuration: AutohandCLIConfiguration
   private let eventHandler: EventHandler?
@@ -344,15 +362,28 @@ public final class AutohandCLIClient: @unchecked Sendable {
   private let lifecycleLock = NSLock()
   private let stateLock = NSLock()
   private let inputLock = NSLock()
+  private var notificationObservers: [(UUID, NotificationHandler)] = []
   private var nextID = 0
   private var process: Process?
   private var input: FileHandle?
   private var output: FileHandle?
   private var responseRouter: ResponseRouter?
+  private var activePrompt: PromptNotifications?
 
   public init(configuration: AutohandCLIConfiguration = .init(), onEvent: EventHandler? = nil) {
     self.configuration = configuration
     self.eventHandler = onEvent
+  }
+
+  /// Observe every packet alongside typed events. Callbacks must not block the protocol reader.
+  @discardableResult
+  public func onNotification(_ callback: @escaping NotificationHandler) -> @Sendable () -> Void {
+    let token = UUID()
+    stateLock.withLock { notificationObservers.append((token, callback)) }
+    return { [weak self] in
+      guard let self else { return }
+      self.stateLock.withLock { self.notificationObservers.removeAll { $0.0 == token } }
+    }
   }
 
   public var isRunning: Bool {
@@ -373,6 +404,10 @@ public final class AutohandCLIClient: @unchecked Sendable {
       closeGeneration()
     }
 
+    try validateCLIArguments(Array(configuration.cliArguments.dropLast(configuration.extraArguments.count)))
+    let runtimeSettings = try configuration.runtimeSettings()
+    let envelope = configuration.needsRuntimeSettings
+      ? String(data: try JSONSerialization.data(withJSONObject: runtimeSettings), encoding: .utf8) : nil
     let responses = ResponseRouter()
     try stateLock.withLock {
       guard process == nil else { throw AutohandCLIClientError.alreadyRunning }
@@ -397,6 +432,7 @@ public final class AutohandCLIClient: @unchecked Sendable {
         ["AUTOHAND_STREAM_TOOL_OUTPUT": "1"], uniquingKeysWith: { _, new in new }
       ).merging(configuration.cliEnvironment, uniquingKeysWith: { _, new in new })
 
+      if let envelope { process.environment?["AUTOHAND_RUN_SETTINGS"] = envelope }
       stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self, responses] handle in
         let data = handle.availableData
         if data.isEmpty {
@@ -428,10 +464,10 @@ public final class AutohandCLIClient: @unchecked Sendable {
       self.responseRouter = responses
     }
     do {
-      if let features = configuration.features {
-        let _: AutohandApplyFlagSettingsResult = try requestBlocking(
-          method: "autohand.applyFlagSettings",
-          parameters: ApplyFlagSettingsParameters(settings: .init(features: features)))
+      if configuration.features != nil {
+        let _: AnyCodable = try requestBlocking(
+          method: "autohand.getState",
+          parameters: [String: String]())
       }
     } catch {
       closeGeneration()
@@ -485,7 +521,115 @@ public final class AutohandCLIClient: @unchecked Sendable {
   }
 
   public func prompt(_ message: String) async throws -> AutohandPromptResult {
-    try await request(method: "autohand.prompt", parameters: PromptParameters(message: message))
+    let result = try await run(message)
+    return AutohandPromptResult(success: result.success)
+  }
+
+  /// Start a lazy, memoized run. Only the active run may issue step decisions.
+  public func send(_ message: String, options: AutohandPromptOptions = .init()) -> AutohandRun {
+    AutohandRun(wake: { [self] in promptGate.wake() }) { [self] cancellation in
+      try runPromptBlocking(message, options: options, cancellation: cancellation)
+    }
+  }
+
+  public func run(_ message: String, options: AutohandPromptOptions = .init()) async throws -> AutohandRunResult {
+    try await send(message, options: options).wait()
+  }
+
+  private func runPromptBlocking(_ message: String, options: AutohandPromptOptions,
+    cancellation: RequestCancellation) throws -> AutohandRunResult {
+    guard promptGate.acquire(cancellation: cancellation) else { throw CancellationError() }
+    defer { promptGate.release() }
+    if cancellation.isCancelled { throw CancellationError() }
+    let notifications = PromptNotifications()
+    stateLock.withLock { activePrompt = notifications }
+    defer { stateLock.withLock { activePrompt = nil } }
+    let acknowledgement = PromptAcknowledgement()
+    let requestCancellation = RequestCancellation()
+    DispatchQueue.global().async { [self] in
+      acknowledgement.complete(Result {
+        try requestBlocking(method: "autohand.prompt", parameters: PromptParameters(
+          message: message, stopWhen: options.stopWhen.isEmpty ? nil : ["mode": "host"]),
+          cancellation: requestCancellation, ownsPromptGate: true)
+      })
+    }
+    let deadline = Date().addingTimeInterval(configuration.timeout)
+    var steps: [AgentStep] = []
+    var output = ""
+    var terminal: AutohandRunStatus?
+    var evaluation: StepEvaluation?
+    var decisionID: String?
+    defer { evaluation?.cancel() }
+    do {
+      while deadline.timeIntervalSinceNow > 0 {
+        if cancellation.isCancelled { throw CancellationError() }
+        if case .failure(let error) = acknowledgement.result { throw error }
+        if let terminal, case .success(let ack) = acknowledgement.result {
+          return AutohandRunResult(success: ack.success, output: output, steps: steps, status: terminal)
+        }
+        if let result = evaluation?.result, let stepID = decisionID, terminal == nil {
+          let stop = try result.get()
+          evaluation?.cancel()
+          evaluation = nil
+          decisionID = nil
+          if cancellation.isCancelled { throw CancellationError() }
+          let response: AutohandPromptResult = try requestBlocking(method: "autohand.stepDecision",
+            parameters: StepDecisionParameters(stepId: stepID, stop: stop))
+          guard response.success else {
+            throw AutohandCLIClientError.invalidResponse("CLI rejected the step decision")
+          }
+        }
+        if let line = notifications.next() {
+          guard let frame = try JSONSerialization.jsonObject(with: line) as? [String: Any],
+            let method = frame["method"] as? String else { continue }
+          let parameters = frame["params"] as? [String: Any]
+          switch method {
+          case "autohand.stepEnd" where !options.stopWhen.isEmpty && terminal == nil:
+            guard let parameters, JSONSerialization.isValidJSONObject(parameters), evaluation == nil else {
+              throw AutohandCLIClientError.invalidResponse("Invalid completed step")
+            }
+            let event = try JSONDecoder().decode(StepEndEvent.self,
+              from: JSONSerialization.data(withJSONObject: parameters))
+            guard !event.stepId.isEmpty, event.step.stepNumber == steps.count + 1 else {
+              throw AutohandCLIClientError.invalidResponse("Invalid completed step sequence")
+            }
+            steps.append(event.step)
+            decisionID = event.stepId
+            evaluation = StepEvaluation(conditions: options.stopWhen, steps: steps)
+          case "autohand.messageEnd": output = parameters?["content"] as? String ?? output
+          case "autohand.turnEnd":
+            terminal = parameters?["reason"] as? String == "stop_condition" ? .stopped
+              : parameters?["reason"] as? String == "aborted" ? .aborted : .completed
+            evaluation?.cancel()
+            evaluation = nil
+          default: break
+          }
+        } else if !isRunning {
+          throw AutohandCLIClientError.transport("CLI closed before the prompt completed")
+        } else {
+          Thread.sleep(forTimeInterval: 0.005)
+        }
+      }
+      throw AutohandCLIClientError.timeout(method: "autohand.prompt", seconds: configuration.timeout)
+    } catch {
+      evaluation?.cancel()
+      if terminal == nil && isRunning {
+        let _: AutohandPromptResult? = try? requestBlocking(method: "autohand.abort", parameters: EmptyParameters())
+        let drainDeadline = Date().addingTimeInterval(min(configuration.timeout, 2))
+        while drainDeadline.timeIntervalSinceNow > 0 && isRunning {
+          if let line = notifications.next(),
+            let frame = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
+            frame["method"] as? String == "autohand.turnEnd" {
+            terminal = .aborted
+          }
+          if terminal != nil && acknowledgement.result != nil { break }
+          Thread.sleep(forTimeInterval: 0.005)
+        }
+        if terminal == nil { close() }
+      }
+      requestCancellation.cancel()
+      throw error
+    }
   }
 
   public func command(_ command: String, arguments: String? = nil) async throws
@@ -502,6 +646,13 @@ public final class AutohandCLIClient: @unchecked Sendable {
 
   public func autoresearch(_ objective: String) async throws -> AutohandPromptResult {
     try await command("/autoresearch", arguments: objective)
+  }
+
+  /// Return effective subagents, including inline and enabled extension agents.
+  public func supportedAgents() async throws -> [AgentInfo] {
+    let result: SupportedAgentsResult = try await request(
+      method: "autohand.getSupportedAgents", parameters: EmptyParameters())
+    return result.agents
   }
 
   public func supportedCommands() async throws -> [String] {
@@ -768,6 +919,49 @@ public final class AutohandCLIClient: @unchecked Sendable {
     try await request(method: "autohand.autoresearch.prune", parameters: parameters)
   }
 
+  /// Send an ordinary CLI RPC operation while preserving its full JSON result.
+  public func rpc(_ method: String, parameters: [String: AnyCodable] = [:]) async throws -> [String: AnyCodable] {
+    try await request(method: method, parameters: parameters)
+  }
+
+  public func setBrowserCapabilities(protocolVersion: Int, extensionVersion: String? = nil,
+    tools: [String]) async throws -> [String: AnyCodable] {
+    var params = ["protocolVersion": AnyCodable(protocolVersion), "tools": AnyCodable(tools)]
+    if let extensionVersion { params["extensionVersion"] = AnyCodable(extensionVersion) }
+    return try await rpc("autohand.browserCapabilities.set", parameters: params)
+  }
+
+  public func setPermissionMode(_ mode: String) async throws -> [String: AnyCodable] {
+    try await rpc("autohand.permissionModeSet", parameters: ["mode": AnyCodable(mode)])
+  }
+  public func setMaxThinkingTokens(_ count: Int?) async throws -> [String: AnyCodable] {
+    try await rpc("autohand.maxThinkingTokensSet", parameters: ["maxThinkingTokens": AnyCodable(count as Any? ?? NSNull())])
+  }
+  public func getState() async throws -> [String: AnyCodable] { try await rpc("autohand.getState") }
+  public func getMessages() async throws -> [String: AnyCodable] { try await rpc("autohand.getMessages") }
+  public func getSupportedModels() async throws -> [String: AnyCodable] { try await rpc("autohand.getSupportedModels") }
+  public func getContextUsage() async throws -> [String: AnyCodable] { try await rpc("autohand.getContextUsage") }
+  public func reloadPlugins() async throws -> [String: AnyCodable] { try await rpc("autohand.reloadPlugins") }
+  public func getAccountInfo() async throws -> [String: AnyCodable] { try await rpc("autohand.getAccountInfo") }
+  public func setModel(_ model: String) async throws -> [String: AnyCodable] {
+    try await rpc("autohand.modelSet", parameters: ["model": AnyCodable(model)])
+  }
+  public func toggleMCPServer(_ name: String, enabled: Bool) async throws -> [String: AnyCodable] {
+    try await rpc("autohand.mcp.toggleServer", parameters: ["serverName": AnyCodable(name), "enabled": AnyCodable(enabled)])
+  }
+  public func reconnectMCPServer(_ name: String) async throws -> [String: AnyCodable] {
+    try await rpc("autohand.mcp.reconnectServer", parameters: ["serverName": AnyCodable(name)])
+  }
+  public func setMCPServers(_ servers: [String: AnyCodable]) async throws -> [String: AnyCodable] {
+    try await rpc("autohand.mcp.setServers", parameters: ["servers": AnyCodable(servers.mapValues(\.value))])
+  }
+  public func setPlanMode(_ enabled: Bool) async throws -> [String: AnyCodable] {
+    try await rpc("autohand.planModeSet", parameters: ["enabled": AnyCodable(enabled)])
+  }
+  public func respondToPermission(_ parameters: [String: AnyCodable]) async throws -> [String: AnyCodable] {
+    try await rpc("autohand.permissionResponse", parameters: parameters)
+  }
+
   private func request<Parameters: Encodable & Sendable, Result: Decodable & Sendable>(
     method: String,
     parameters: Parameters
@@ -788,9 +982,10 @@ public final class AutohandCLIClient: @unchecked Sendable {
   private func requestBlocking<Parameters: Encodable, Result: Decodable>(
     method: String,
     parameters: Parameters,
-    cancellation: RequestCancellation? = nil
+    cancellation: RequestCancellation? = nil,
+    ownsPromptGate: Bool = false
   ) throws -> Result {
-    let gate = method == "autohand.prompt" ? promptGate : nil
+    let gate = method == "autohand.prompt" && !ownsPromptGate ? promptGate : nil
     if let gate {
       guard gate.acquire(cancellation: cancellation) else { throw CancellationError() }
     }
@@ -874,6 +1069,17 @@ public final class AutohandCLIClient: @unchecked Sendable {
       let method = object["method"] as? String,
       object["id"] == nil
     else { return }
+    let observers = stateLock.withLock { notificationObservers }
+    for (_, observer) in observers {
+      do {
+        // Parse separately so reference-backed JSON values cannot leak mutations between observers.
+        let packet = try JSONDecoder().decode(WireNotification.self, from: line)
+        try observer(packet)
+      } catch {
+        // User observers cannot disrupt typed events or pending RPC responses.
+      }
+    }
+    stateLock.withLock { activePrompt }?.append(line)
     handleNotification(method: method, parameters: object["params"])
   }
 
@@ -1237,4 +1443,60 @@ private final class ResponseRouter: @unchecked Sendable {
     condition.unlock()
   }
 
+}
+
+private struct StepDecisionParameters: Codable, Sendable {
+  let stepId: String
+  let stop: Bool
+}
+
+private final class PromptAcknowledgement: @unchecked Sendable {
+  private let lock = NSLock()
+  private var stored: Result<AutohandPromptResult, any Error>?
+  var result: Result<AutohandPromptResult, any Error>? { lock.withLock { stored } }
+  func complete(_ result: Result<AutohandPromptResult, any Error>) { lock.withLock { stored = result } }
+}
+
+private final class PromptNotifications: @unchecked Sendable {
+  private let lock = NSLock()
+  private var frames: [Data] = []
+  private var cursor = 0
+  func append(_ data: Data) { lock.withLock { frames.append(data) } }
+  func next() -> Data? {
+    lock.withLock {
+      guard cursor < frames.count else { return nil }
+      let result = frames[cursor]
+      cursor += 1
+      if cursor >= 256 { frames.removeFirst(cursor); cursor = 0 }
+      return result
+    }
+  }
+}
+
+/// A lazy run with a stable result. Abort is scoped to this run, including while queued.
+@available(iOS, unavailable, message: "The Autohand CLI subprocess is available on macOS hosts only.")
+public final class AutohandRun: @unchecked Sendable {
+  private let lock = NSLock()
+  private let cancellation = RequestCancellation()
+  private let operation: @Sendable (RequestCancellation) throws -> AutohandRunResult
+  private let wake: @Sendable () -> Void
+  private var task: Task<AutohandRunResult, any Error>?
+
+  fileprivate init(wake: @escaping @Sendable () -> Void,
+    operation: @escaping @Sendable (RequestCancellation) throws -> AutohandRunResult) {
+    self.operation = operation
+    self.wake = wake
+  }
+
+  public func abort() { cancellation.cancel(); wake() }
+
+  public func wait() async throws -> AutohandRunResult {
+    let task = lock.withLock {
+      if let stored = self.task { return stored }
+      let created = Task.detached { [self] in try operation(cancellation) }
+      self.task = created
+      return created
+    }
+    return try await withTaskCancellationHandler { try await task.value } onCancel: { self.abort() }
+  }
 }
