@@ -225,3 +225,7 @@ swift build
 swift test
 Scripts/benchmark-startup.sh
 ```
+
+## License
+
+Apache License 2.0 - Free for individuals, non-profits, educational institutions, open source projects, and companies with ARR under $5M. See [LICENSE](LICENSE) and [COMMERCIAL.md](COMMERCIAL.md) for details.
